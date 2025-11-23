@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs cat:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm install)",
+      "Bash(cat:*)",
+      "Bash(test:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run db:generate:*)",
+      "Bash(openssl rand:*)",
+      "Bash(npm run db:migrate:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(psql:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
