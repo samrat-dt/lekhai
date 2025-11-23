@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   integer,
+  index,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -17,7 +18,10 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   deletedAt: timestamp('deleted_at'),
-});
+}, (table) => ({
+  emailIdx: index('users_email_idx').on(table.email),
+  deletedAtIdx: index('users_deleted_at_idx').on(table.deletedAt),
+}));
 
 export const teams = pgTable('teams', {
   id: serial('id').primaryKey(),
@@ -41,7 +45,11 @@ export const teamMembers = pgTable('team_members', {
     .references(() => teams.id),
   role: varchar('role', { length: 50 }).notNull(),
   joinedAt: timestamp('joined_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index('team_members_user_id_idx').on(table.userId),
+  teamIdIdx: index('team_members_team_id_idx').on(table.teamId),
+  userTeamIdx: index('team_members_user_team_idx').on(table.userId, table.teamId),
+}));
 
 export const activityLogs = pgTable('activity_logs', {
   id: serial('id').primaryKey(),
@@ -52,7 +60,12 @@ export const activityLogs = pgTable('activity_logs', {
   action: text('action').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
   ipAddress: varchar('ip_address', { length: 45 }),
-});
+}, (table) => ({
+  teamIdIdx: index('activity_logs_team_id_idx').on(table.teamId),
+  userIdIdx: index('activity_logs_user_id_idx').on(table.userId),
+  timestampIdx: index('activity_logs_timestamp_idx').on(table.timestamp),
+  actionIdx: index('activity_logs_action_idx').on(table.action),
+}));
 
 export const invitations = pgTable('invitations', {
   id: serial('id').primaryKey(),
@@ -66,7 +79,12 @@ export const invitations = pgTable('invitations', {
     .references(() => users.id),
   invitedAt: timestamp('invited_at').notNull().defaultNow(),
   status: varchar('status', { length: 20 }).notNull().default('pending'),
-});
+}, (table) => ({
+  teamIdIdx: index('invitations_team_id_idx').on(table.teamId),
+  emailIdx: index('invitations_email_idx').on(table.email),
+  statusIdx: index('invitations_status_idx').on(table.status),
+  emailStatusIdx: index('invitations_email_status_idx').on(table.email, table.status),
+}));
 
 export const teamsRelations = relations(teams, ({ many }) => ({
   teamMembers: many(teamMembers),
@@ -139,6 +157,12 @@ export enum ActivityType {
   REMOVE_TEAM_MEMBER = 'REMOVE_TEAM_MEMBER',
   INVITE_TEAM_MEMBER = 'INVITE_TEAM_MEMBER',
   ACCEPT_INVITATION = 'ACCEPT_INVITATION',
+  GDPR_DATA_EXPORT = 'GDPR_DATA_EXPORT',
+  GDPR_DATA_DELETION_REQUEST = 'GDPR_DATA_DELETION_REQUEST',
+  DOCUMENT_GENERATED = 'DOCUMENT_GENERATED',
+  DOCUMENT_GENERATION_FAILED = 'DOCUMENT_GENERATION_FAILED',
+  CREDIT_PURCHASED = 'CREDIT_PURCHASED',
+  CREDIT_REFUNDED = 'CREDIT_REFUNDED',
 }
 
 // Legal documents table
@@ -154,7 +178,13 @@ export const legalDocuments = pgTable('legal_documents', {
   status: varchar('status', { length: 20 }).notNull().default('PENDING'), // 'PENDING' | 'GENERATED' | 'FAILED'
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index('legal_documents_user_id_idx').on(table.userId),
+  statusIdx: index('legal_documents_status_idx').on(table.status),
+  typeIdx: index('legal_documents_type_idx').on(table.type),
+  createdAtIdx: index('legal_documents_created_at_idx').on(table.createdAt),
+  userStatusIdx: index('legal_documents_user_status_idx').on(table.userId, table.status),
+}));
 
 // User credits table
 export const userCredits = pgTable('user_credits', {
@@ -180,7 +210,12 @@ export const creditTransactions = pgTable('credit_transactions', {
   stripeCheckoutSessionId: text('stripe_checkout_session_id'),
   documentId: integer('document_id').references(() => legalDocuments.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
+  reasonIdx: index('credit_transactions_reason_idx').on(table.reason),
+  createdAtIdx: index('credit_transactions_created_at_idx').on(table.createdAt),
+  stripePaymentIntentIdx: index('credit_transactions_stripe_payment_intent_idx').on(table.stripePaymentIntentId),
+}));
 
 // Relations for new tables
 export const legalDocumentsRelations = relations(legalDocuments, ({ one }) => ({

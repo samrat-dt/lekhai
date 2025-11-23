@@ -1,9 +1,9 @@
 'use server';
 
 import { db } from '@/lib/db/drizzle';
-import { legalDocuments, userCredits, creditTransactions } from '@/lib/db/schema';
+import { legalDocuments, userCredits, creditTransactions, activityLogs, ActivityType } from '@/lib/db/schema';
 import { eq, sql, and } from 'drizzle-orm';
-import { getUser } from '@/lib/db/queries';
+import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import { revalidatePath } from 'next/cache';
 import { rateLimitDocument } from '@/lib/rate-limit';
 import { sanitizePayloadForLLM, validateNoExcessiveRepetition } from '@/lib/llm-sanitize';

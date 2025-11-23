@@ -1,0 +1,22 @@
+CREATE INDEX "activity_logs_team_id_idx" ON "activity_logs" USING btree ("team_id");--> statement-breakpoint
+CREATE INDEX "activity_logs_user_id_idx" ON "activity_logs" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "activity_logs_timestamp_idx" ON "activity_logs" USING btree ("timestamp");--> statement-breakpoint
+CREATE INDEX "activity_logs_action_idx" ON "activity_logs" USING btree ("action");--> statement-breakpoint
+CREATE INDEX "credit_transactions_user_id_idx" ON "credit_transactions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "credit_transactions_reason_idx" ON "credit_transactions" USING btree ("reason");--> statement-breakpoint
+CREATE INDEX "credit_transactions_created_at_idx" ON "credit_transactions" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "credit_transactions_stripe_payment_intent_idx" ON "credit_transactions" USING btree ("stripe_payment_intent_id");--> statement-breakpoint
+CREATE INDEX "invitations_team_id_idx" ON "invitations" USING btree ("team_id");--> statement-breakpoint
+CREATE INDEX "invitations_email_idx" ON "invitations" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "invitations_status_idx" ON "invitations" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "invitations_email_status_idx" ON "invitations" USING btree ("email","status");--> statement-breakpoint
+CREATE INDEX "legal_documents_user_id_idx" ON "legal_documents" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "legal_documents_status_idx" ON "legal_documents" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "legal_documents_type_idx" ON "legal_documents" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "legal_documents_created_at_idx" ON "legal_documents" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "legal_documents_user_status_idx" ON "legal_documents" USING btree ("user_id","status");--> statement-breakpoint
+CREATE INDEX "team_members_user_id_idx" ON "team_members" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "team_members_team_id_idx" ON "team_members" USING btree ("team_id");--> statement-breakpoint
+CREATE INDEX "team_members_user_team_idx" ON "team_members" USING btree ("user_id","team_id");--> statement-breakpoint
+CREATE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "users_deleted_at_idx" ON "users" USING btree ("deleted_at");
