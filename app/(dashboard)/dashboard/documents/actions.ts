@@ -5,6 +5,8 @@ import { legalDocuments, userCredits, creditTransactions } from '@/lib/db/schema
 import { eq, sql, and } from 'drizzle-orm';
 import { getUser } from '@/lib/db/queries';
 import { revalidatePath } from 'next/cache';
+import { rateLimitDocument } from '@/lib/rate-limit';
+import { sanitizePayloadForLLM, validateNoExcessiveRepetition } from '@/lib/llm-sanitize';
 // Document type union
 export type DocumentType =
   | 'LOST_DOCUMENT_AFFIDAVIT'
@@ -230,6 +232,30 @@ export async function generateDocument(
       return { success: false, error: 'Unauthorized. Please sign in.' };
     }
 
+    // Step 1.5: Rate limit document generation (10 per hour per user)
+    const rateLimitResult = await rateLimitDocument(`user:${user.id}`);
+    if (!rateLimitResult.success) {
+      const resetTime = rateLimitResult.reset
+        ? new Date(rateLimitResult.reset).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+        : 'soon';
+      return {
+        success: false,
+        error: `Rate limit exceeded. You can generate more documents at ${resetTime}. Limit: ${rateLimitResult.limit}/hour.`,
+      };
+    }
+
+    // Step 1.6: Sanitize payload to prevent prompt injection
+    const sanitizedPayload = sanitizePayloadForLLM(params.payload);
+
+    // Validate no excessive repetition (token exhaustion attack)
+    const payloadString = JSON.stringify(sanitizedPayload);
+    if (!validateNoExcessiveRepetition(payloadString)) {
+      return {
+        success: false,
+        error: 'Invalid input detected. Please check your input and try again.',
+      };
+    }
+
     // Step 2: Create document record in PENDING state
     const title = params.title || generateTitle(params.type, params.payload);
 
@@ -239,7 +265,7 @@ export async function generateDocument(
         userId: user.id,
         type: params.type,
         title,
-        inputPayload: JSON.stringify(params.payload),
+        inputPayload: JSON.stringify(sanitizedPayload),
         status: 'PENDING',
       })
       .returning();
@@ -304,7 +330,7 @@ export async function generateDocument(
             },
             {
               role: 'user',
-              content: getUserPrompt(params.type, params.payload),
+              content: getUserPrompt(params.type, sanitizedPayload),
             },
           ],
           max_tokens: 4096,

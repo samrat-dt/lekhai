@@ -51,6 +51,16 @@ const signInSchema = z.object({
   password: z.string().min(8).max(100)
 });
 
+// Password strength validation
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(100, 'Password must not exceed 100 characters')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(/[^a-zA-Z0-9]/, 'Password must contain at least one special character');
+
 export const signIn = validatedAction(signInSchema, async (data, formData) => {
   const { email, password } = data;
 
@@ -104,7 +114,7 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
 
 const signUpSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: passwordSchema,
   inviteId: z.string().optional()
 });
 
@@ -239,7 +249,7 @@ export async function signOut() {
 
 const updatePasswordSchema = z.object({
   currentPassword: z.string().min(8).max(100),
-  newPassword: z.string().min(8).max(100),
+  newPassword: passwordSchema,
   confirmPassword: z.string().min(8).max(100)
 });
 
@@ -379,6 +389,32 @@ export const removeTeamMember = validatedActionWithUser(
 
     if (!userWithTeam?.teamId) {
       return { error: 'User is not part of a team' };
+    }
+
+    // Authorization check: Only owners can remove team members
+    if (user.role !== 'owner') {
+      return { error: 'Unauthorized. Only team owners can remove members.' };
+    }
+
+    // Verify the member to be removed belongs to the same team
+    const [memberToRemove] = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.id, memberId),
+          eq(teamMembers.teamId, userWithTeam.teamId)
+        )
+      )
+      .limit(1);
+
+    if (!memberToRemove) {
+      return { error: 'Team member not found or does not belong to your team' };
+    }
+
+    // Prevent removing yourself
+    if (memberToRemove.userId === user.id) {
+      return { error: 'You cannot remove yourself from the team' };
     }
 
     await db

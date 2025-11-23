@@ -17,7 +17,8 @@
       "Bash(psql:*)",
       "Bash(npx tsx:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Lekhāi - Legal Document Platform\n\nFeatures:\n- 9 document types (affidavits, notices, receipts)\n- AI generation using OpenRouter (FREE tier)\n- Credit-based system with Stripe payments\n- PostgreSQL database with Drizzle ORM\n- JWT authentication\n- Monochrome, geometric design system\n\nSecurity Improvements:\n- Fixed race condition in credit system (atomic SQL operations)\n- Created .env.example template (secrets excluded)\n- Added SECURITY.md with credential rotation guide\n- .env properly excluded from version control\n\nTech Stack:\n- Next.js 15 with App Router\n- React 19\n- TailwindCSS v4\n- TypeScript\n- PostgreSQL (Railway)\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
