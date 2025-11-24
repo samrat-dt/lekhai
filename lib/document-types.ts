@@ -48,6 +48,7 @@ export interface DocumentTypeInfo {
   description: string;
   category: 'payment' | 'property' | 'employment' | 'consumer' | 'personal' | 'affidavit' | 'letter' | 'agreement';
   urgency: 'high' | 'medium' | 'low';
+  isImplemented: boolean;
 }
 
 export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
@@ -57,6 +58,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Money not returned by friend, freelancer, contractor, or tenant',
     category: 'payment',
     urgency: 'high',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.WORK_COMPLETION_DELAY]: {
     id: DOCUMENT_TYPES.WORK_COMPLETION_DELAY,
@@ -64,6 +66,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For delayed work by painters, contractors, carpenters, plumbers',
     category: 'property',
     urgency: 'medium',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.FNF_NOT_PAID]: {
     id: DOCUMENT_TYPES.FNF_NOT_PAID,
@@ -71,6 +74,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'F&F not paid after leaving a job',
     category: 'employment',
     urgency: 'high',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.RENT_DEFAULT]: {
     id: DOCUMENT_TYPES.RENT_DEFAULT,
@@ -78,6 +82,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Rent unpaid, tenant unresponsive (for landlords)',
     category: 'property',
     urgency: 'high',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.TENANT_EVICTION]: {
     id: DOCUMENT_TYPES.TENANT_EVICTION,
@@ -85,6 +90,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Non-payment or property misuse (for landlords)',
     category: 'property',
     urgency: 'high',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.LANDLORD_HARASSMENT]: {
     id: DOCUMENT_TYPES.LANDLORD_HARASSMENT,
@@ -92,6 +98,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Harassment or unfair rent increase (for tenants)',
     category: 'property',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.CHEQUE_BOUNCE]: {
     id: DOCUMENT_TYPES.CHEQUE_BOUNCE,
@@ -99,6 +106,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Time-sensitive legal notice for dishonored cheque',
     category: 'payment',
     urgency: 'high',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.CONSUMER_COMPLAINT]: {
     id: DOCUMENT_TYPES.CONSUMER_COMPLAINT,
@@ -106,6 +114,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Defective product, bad service, non-refund',
     category: 'consumer',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.POSSESSION_DELAY]: {
     id: DOCUMENT_TYPES.POSSESSION_DELAY,
@@ -113,6 +122,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Builder not delivering flat on time',
     category: 'property',
     urgency: 'high',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.DEFAMATION]: {
     id: DOCUMENT_TYPES.DEFAMATION,
@@ -120,6 +130,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Online or offline defamation, rumors, harassment',
     category: 'personal',
     urgency: 'high',
+    isImplemented: false,
   },
 
   // Affidavits
@@ -129,6 +140,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For lost PAN, Aadhaar, marksheets, RC book, certificates',
     category: 'affidavit',
     urgency: 'medium',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.NAME_CORRECTION_AFFIDAVIT]: {
     id: DOCUMENT_TYPES.NAME_CORRECTION_AFFIDAVIT,
@@ -136,6 +148,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Spelling errors in certificates, IDs, bank records',
     category: 'affidavit',
     urgency: 'medium',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.ADDRESS_PROOF_AFFIDAVIT]: {
     id: DOCUMENT_TYPES.ADDRESS_PROOF_AFFIDAVIT,
@@ -143,6 +156,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For banks, SIM cards, rental applications, school admissions',
     category: 'affidavit',
     urgency: 'low',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.INCOME_DECLARATION]: {
     id: DOCUMENT_TYPES.INCOME_DECLARATION,
@@ -150,6 +164,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For scholarships, schools, banks, visa applications',
     category: 'affidavit',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.SELF_DECLARATION]: {
     id: DOCUMENT_TYPES.SELF_DECLARATION,
@@ -157,6 +172,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For address, identity, relationship verification',
     category: 'affidavit',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.SIGNATURE_CHANGE_AFFIDAVIT]: {
     id: DOCUMENT_TYPES.SIGNATURE_CHANGE_AFFIDAVIT,
@@ -164,6 +180,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Required for banks and financial institutions',
     category: 'affidavit',
     urgency: 'medium',
+    isImplemented: false,
   },
 
   // Letters & Templates
@@ -173,6 +190,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Account closure, address change, cheque book, statement request',
     category: 'letter',
     urgency: 'low',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.NOC_GENERAL]: {
     id: DOCUMENT_TYPES.NOC_GENERAL,
@@ -180,6 +198,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For property, job, school, bank, employer',
     category: 'letter',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.BONAFIDE_REQUEST]: {
     id: DOCUMENT_TYPES.BONAFIDE_REQUEST,
@@ -187,6 +206,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For visa, education, or employment',
     category: 'letter',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.TRAVEL_CONSENT]: {
     id: DOCUMENT_TYPES.TRAVEL_CONSENT,
@@ -194,6 +214,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For flights, school trips, visa applications',
     category: 'letter',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.LEAVE_APPLICATION]: {
     id: DOCUMENT_TYPES.LEAVE_APPLICATION,
@@ -201,6 +222,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Medical, personal, emergency leave formats',
     category: 'letter',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.EXPERIENCE_LETTER]: {
     id: DOCUMENT_TYPES.EXPERIENCE_LETTER,
@@ -208,6 +230,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Employer experience certificate format',
     category: 'letter',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.SALARY_CERTIFICATE]: {
     id: DOCUMENT_TYPES.SALARY_CERTIFICATE,
@@ -215,6 +238,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Income proof letter from employer',
     category: 'letter',
     urgency: 'low',
+    isImplemented: false,
   },
 
   // Agreements & Receipts
@@ -224,6 +248,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Monthly rent receipts for HRA claims',
     category: 'agreement',
     urgency: 'low',
+    isImplemented: true,
   },
   [DOCUMENT_TYPES.SIMPLE_RENTAL_AGREEMENT]: {
     id: DOCUMENT_TYPES.SIMPLE_RENTAL_AGREEMENT,
@@ -231,6 +256,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Non-registration format for short-term rentals',
     category: 'agreement',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.ROOMMATE_AGREEMENT]: {
     id: DOCUMENT_TYPES.ROOMMATE_AGREEMENT,
@@ -238,6 +264,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'Simple format for sharing clarity',
     category: 'agreement',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.GIFT_DEED]: {
     id: DOCUMENT_TYPES.GIFT_DEED,
@@ -245,6 +272,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For money, laptop, jewellery gifts',
     category: 'agreement',
     urgency: 'low',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.GPA_ROUTINE]: {
     id: DOCUMENT_TYPES.GPA_ROUTINE,
@@ -252,6 +280,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For routine matters (not property)',
     category: 'agreement',
     urgency: 'medium',
+    isImplemented: false,
   },
 
   // Others
@@ -261,6 +290,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: '30-day or 60-day notice for tenants/landlords',
     category: 'property',
     urgency: 'medium',
+    isImplemented: false,
   },
   [DOCUMENT_TYPES.MEETING_MINUTES]: {
     id: DOCUMENT_TYPES.MEETING_MINUTES,
@@ -268,6 +298,7 @@ export const DOCUMENT_TYPE_INFO: Record<DocumentType, DocumentTypeInfo> = {
     description: 'For housing societies, clubs, small businesses',
     category: 'letter',
     urgency: 'low',
+    isImplemented: false,
   },
 };
 

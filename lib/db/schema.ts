@@ -165,6 +165,22 @@ export enum ActivityType {
   CREDIT_REFUNDED = 'CREDIT_REFUNDED',
 }
 
+// Password reset tokens table
+export const passwordResetTokens = pgTable('password_reset_tokens', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id),
+  token: varchar('token', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  usedAt: timestamp('used_at'),
+}, (table) => ({
+  userIdIdx: index('password_reset_tokens_user_id_idx').on(table.userId),
+  tokenIdx: index('password_reset_tokens_token_idx').on(table.token),
+  expiresAtIdx: index('password_reset_tokens_expires_at_idx').on(table.expiresAt),
+}));
+
 // Legal documents table
 export const legalDocuments = pgTable('legal_documents', {
   id: serial('id').primaryKey(),
@@ -243,6 +259,13 @@ export const creditTransactionsRelations = relations(creditTransactions, ({ one 
   }),
 }));
 
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 // Update users relations to include new tables
 export const usersRelationsUpdated = relations(users, ({ many }) => ({
   teamMembers: many(teamMembers),
@@ -258,3 +281,5 @@ export type UserCredits = typeof userCredits.$inferSelect;
 export type NewUserCredits = typeof userCredits.$inferInsert;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
 export type NewCreditTransaction = typeof creditTransactions.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;

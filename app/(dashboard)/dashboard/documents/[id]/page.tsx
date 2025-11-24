@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Copy, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ArrowLeft, Download, Copy, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
+import { generatePDF, generateNotaryPDF } from '@/lib/pdf/generator';
 
 interface DocumentPageProps {
   params: Promise<{
@@ -157,7 +158,7 @@ export default function DocumentPage({ params }: DocumentPageProps) {
 
         {/* Actions */}
         {document.status === 'GENERATED' && document.generatedContent && (
-          <div className="flex gap-3 mb-8">
+          <div className="flex flex-wrap gap-3 mb-8">
             <Button
               onClick={() => {
                 navigator.clipboard.writeText(document.generatedContent || '');
@@ -166,7 +167,38 @@ export default function DocumentPage({ params }: DocumentPageProps) {
               variant="outline"
               className="border-foreground text-foreground hover:bg-foreground hover:text-background"
             >
+              <Copy className="mr-2 h-4 w-4" />
               Copy
+            </Button>
+            <Button
+              onClick={() => {
+                generatePDF({
+                  title: document.title,
+                  content: document.generatedContent || '',
+                  documentType: document.type,
+                  createdDate: new Date(document.createdAt)
+                });
+              }}
+              variant="outline"
+              className="border-foreground text-foreground hover:bg-foreground hover:text-background"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+            <Button
+              onClick={() => {
+                generateNotaryPDF({
+                  title: document.title,
+                  content: document.generatedContent || '',
+                  documentType: document.type,
+                  createdDate: new Date(document.createdAt)
+                });
+              }}
+              variant="outline"
+              className="border-foreground text-foreground hover:bg-foreground hover:text-background"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              PDF (Notary)
             </Button>
             <Button
               onClick={() => {
@@ -181,7 +213,8 @@ export default function DocumentPage({ params }: DocumentPageProps) {
               variant="outline"
               className="border-foreground text-foreground hover:bg-foreground hover:text-background"
             >
-              Download
+              <Download className="mr-2 h-4 w-4" />
+              Download Text
             </Button>
           </div>
         )}

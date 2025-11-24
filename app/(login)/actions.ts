@@ -16,7 +16,10 @@ import {
   ActivityType,
   invitations,
   userCredits,
-  type NewUserCredits
+  type NewUserCredits,
+  creditTransactions,
+  passwordResetTokens,
+  type NewPasswordResetToken
 } from '@/lib/db/schema';
 import { comparePasswords, hashPassword, setSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
@@ -27,6 +30,9 @@ import {
   validatedAction,
   validatedActionWithUser
 } from '@/lib/auth/middleware';
+import { sendEmail } from '@/lib/email/service';
+import { invitationEmailTemplate, passwordResetEmailTemplate } from '@/lib/email/templates';
+import crypto from 'crypto';
 
 async function logActivity(
   teamId: number | null | undefined,
@@ -218,10 +224,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     role: userRole
   };
 
-  // Initialize user credits with 0 credits
+  // EARLY USER PROMOTION: First 3 users get 10 free credits
+  // Check total user count to determine if this is one of the first 3 users
+  const totalUsers = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(users);
+
+  const userCount = Number(totalUsers[0]?.count || 0);
+  const isEarlyUser = userCount <= 3;
+  const initialCredits = isEarlyUser ? 10 : 0;
+
+  // Initialize user credits
   const newUserCredits: NewUserCredits = {
     userId: createdUser.id,
-    credits: 0
+    credits: initialCredits
   };
 
   await Promise.all([
@@ -230,6 +246,20 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     logActivity(teamId, createdUser.id, ActivityType.SIGN_UP),
     setSession(createdUser)
   ]);
+
+  // Log the promotional credit transaction if user received credits
+  if (isEarlyUser && initialCredits > 0) {
+    await db.insert(creditTransactions).values({
+      userId: createdUser.id,
+      change: initialCredits,
+      reason: 'PROMOTION',
+      metadata: JSON.stringify({
+        promotion: 'EARLY_USER_BONUS',
+        userNumber: userCount,
+        description: 'Welcome bonus for being one of the first 3 users! Enjoy 10 free credits.'
+      })
+    });
+  }
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
@@ -482,13 +512,13 @@ export const inviteTeamMember = validatedActionWithUser(
     }
 
     // Create a new invitation
-    await db.insert(invitations).values({
+    const [newInvitation] = await db.insert(invitations).values({
       teamId: userWithTeam.teamId,
       email,
       role,
       invitedBy: user.id,
       status: 'pending'
-    });
+    }).returning();
 
     await logActivity(
       userWithTeam.teamId,
@@ -496,9 +526,144 @@ export const inviteTeamMember = validatedActionWithUser(
       ActivityType.INVITE_TEAM_MEMBER
     );
 
-    // TODO: Send invitation email and include ?inviteId={id} to sign-up URL
-    // await sendInvitationEmail(email, userWithTeam.team.name, role)
+    // Send invitation email
+    if (newInvitation) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const signUpUrl = `${baseUrl}/signup?inviteId=${newInvitation.id}`;
+
+      const inviterName = user.name || user.email;
+      const [team] = await db
+        .select()
+        .from(teams)
+        .where(eq(teams.id, userWithTeam.teamId))
+        .limit(1);
+
+      const teamName = team?.name || 'our team';
+
+      await sendEmail({
+        to: email,
+        subject: `You're invited to join ${teamName} on Lekhai`,
+        html: invitationEmailTemplate(teamName, inviterName, signUpUrl)
+      });
+    }
 
     return { success: 'Invitation sent successfully' };
+  }
+);
+
+// Forgot password schema
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address')
+});
+
+export const requestPasswordReset = validatedAction(
+  forgotPasswordSchema,
+  async (data) => {
+    const { email } = data;
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (!user) {
+      // Don't reveal whether email exists for security
+      return {
+        success:
+          'If an account exists with that email, you will receive a password reset link.'
+      };
+    }
+
+    // Generate a secure token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const resetToken: NewPasswordResetToken = {
+      userId: user.id,
+      token,
+      expiresAt
+    };
+
+    await db.insert(passwordResetTokens).values(resetToken);
+
+    // Send reset email
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const resetUrl = `${baseUrl}/reset-password/${token}`;
+
+    await sendEmail({
+      to: email,
+      subject: 'Reset Your Lekhai Password',
+      html: passwordResetEmailTemplate(resetUrl)
+    });
+
+    return {
+      success:
+        'If an account exists with that email, you will receive a password reset link.'
+    };
+  }
+);
+
+// Reset password schema
+const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1, 'Reset token is required'),
+    password: passwordSchema,
+    confirmPassword: z.string().min(8)
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword']
+  });
+
+export const resetPassword = validatedAction(
+  resetPasswordSchema,
+  async (data) => {
+    const { token, password } = data;
+
+    // Find the reset token
+    const [resetToken] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token))
+      .limit(1);
+
+    if (!resetToken) {
+      return {
+        error: 'Invalid or expired reset link. Please request a new password reset.'
+      };
+    }
+
+    // Check if token has expired
+    if (resetToken.expiresAt < new Date()) {
+      return {
+        error: 'Reset link has expired. Please request a new password reset.'
+      };
+    }
+
+    // Check if token has already been used
+    if (resetToken.usedAt) {
+      return {
+        error: 'This reset link has already been used. Please request a new password reset.'
+      };
+    }
+
+    // Update password
+    const newPasswordHash = await hashPassword(password);
+    await Promise.all([
+      db
+        .update(users)
+        .set({ passwordHash: newPasswordHash })
+        .where(eq(users.id, resetToken.userId)),
+      db
+        .update(passwordResetTokens)
+        .set({ usedAt: sql`CURRENT_TIMESTAMP` })
+        .where(eq(passwordResetTokens.id, resetToken.id))
+    ]);
+
+    return {
+      success:
+        'Your password has been reset successfully. Please sign in with your new password.'
+    };
   }
 );

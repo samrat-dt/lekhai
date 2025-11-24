@@ -25,6 +25,12 @@ const iconMap: Record<ActivityType, LucideIcon> = {
   [ActivityType.REMOVE_TEAM_MEMBER]: UserMinus,
   [ActivityType.INVITE_TEAM_MEMBER]: Mail,
   [ActivityType.ACCEPT_INVITATION]: CheckCircle,
+  [ActivityType.GDPR_DATA_EXPORT]: AlertCircle,
+  [ActivityType.GDPR_DATA_DELETION_REQUEST]: AlertCircle,
+  [ActivityType.DOCUMENT_GENERATED]: CheckCircle,
+  [ActivityType.DOCUMENT_GENERATION_FAILED]: AlertCircle,
+  [ActivityType.CREDIT_PURCHASED]: CheckCircle,
+  [ActivityType.CREDIT_REFUNDED]: CheckCircle,
 };
 
 function getRelativeTime(date: Date) {
@@ -63,6 +69,18 @@ function formatAction(action: ActivityType): string {
       return 'You invited a team member';
     case ActivityType.ACCEPT_INVITATION:
       return 'You accepted an invitation';
+    case ActivityType.GDPR_DATA_EXPORT:
+      return 'You exported your data';
+    case ActivityType.GDPR_DATA_DELETION_REQUEST:
+      return 'You requested data deletion';
+    case ActivityType.DOCUMENT_GENERATED:
+      return 'A document was generated';
+    case ActivityType.DOCUMENT_GENERATION_FAILED:
+      return 'A document generation failed';
+    case ActivityType.CREDIT_PURCHASED:
+      return 'You purchased credits';
+    case ActivityType.CREDIT_REFUNDED:
+      return 'Your credits were refunded';
     default:
       return 'Unknown action occurred';
   }

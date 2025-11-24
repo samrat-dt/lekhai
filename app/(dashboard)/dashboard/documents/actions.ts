@@ -7,6 +7,7 @@ import { getUser, getUserWithTeam } from '@/lib/db/queries';
 import { revalidatePath } from 'next/cache';
 import { rateLimitDocument } from '@/lib/rate-limit';
 import { sanitizePayloadForLLM, validateNoExcessiveRepetition } from '@/lib/llm-sanitize';
+import { generateWithPerplexity, buildDocumentPrompt, LEGAL_DOCUMENT_SYSTEM_PROMPT, PERPLEXITY_MODELS } from '@/lib/ai/perplexity';
 // Document type union
 export type DocumentType =
   | 'LOST_DOCUMENT_AFFIDAVIT'
@@ -38,16 +39,9 @@ export interface GenerateDocumentResult {
   message?: string;
 }
 
-// OpenRouter API configuration
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-
-// Free models available on OpenRouter:
-// - meta-llama/llama-3.1-8b-instruct:free
-// - google/gemma-2-9b-it:free
-// - microsoft/phi-3-mini-128k-instruct:free
-// - nousresearch/hermes-3-llama-3.1-405b:free (best quality, free tier)
-const FREE_MODEL = 'nousresearch/hermes-3-llama-3.1-405b:free';
+// Perplexity API configuration (migrated from OpenRouter)
+// Using Perplexity's chat models for high-quality document generation
+const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 
 // Generate title if not provided
 const generateTitle = (type: DocumentType, payload: any): string => {
@@ -89,129 +83,8 @@ const generateTitle = (type: DocumentType, payload: any): string => {
   }
 };
 
-// Get document-specific system prompt
-const getSystemPrompt = (type: DocumentType): string => {
-  const baseInstructions = `You are a legal document drafting assistant for India. Generate professional, legally sound documents in Indian English.
-
-CRITICAL FORMATTING RULES:
-- Use clear section headings
-- Use proper legal language but keep it accessible
-- Include all relevant clauses and details from the provided information
-- Use Indian date format (DD/MM/YYYY)
-- Use ₹ for currency
-- Be precise and factual
-- Do not use em dashes, use hyphens or commas
-- Do not use AI fluff words like "delve", "meticulously", "tapestry", etc.
-- Keep the tone ${type.includes('AFFIDAVIT') ? 'formal and declarative' : 'professional and direct'}`;
-
-  switch (type) {
-    case 'LOST_DOCUMENT_AFFIDAVIT':
-      return `${baseInstructions}
-
-Format as a sworn affidavit with:
-- Title: AFFIDAVIT
-- Deponent details (I, [name], son/daughter/wife of [father/husband name], aged [age] years, residing at...)
-- Numbered paragraphs stating facts
-- Declaration of truth
-- Verification clause
-- Deponent signature line
-- Place and date of execution`;
-
-    case 'NAME_CORRECTION_AFFIDAVIT':
-      return `${baseInstructions}
-
-Format as a sworn affidavit with:
-- Title: AFFIDAVIT FOR NAME CORRECTION
-- Deponent details
-- Clear statement of incorrect name vs correct name
-- Reason for discrepancy
-- Declaration that both names refer to the same person
-- Purpose of affidavit
-- Verification clause`;
-
-    case 'ADDRESS_PROOF_AFFIDAVIT':
-      return `${baseInstructions}
-
-Format as a sworn affidavit with:
-- Title: AFFIDAVIT FOR ADDRESS PROOF
-- Deponent details
-- Statement of current residential address
-- Duration of residence
-- Purpose of affidavit
-- Supporting documents mentioned
-- Verification clause`;
-
-    case 'BANK_REQUEST_LETTER':
-      return `${baseInstructions}
-
-Format as a formal business letter with:
-- Date (top right)
-- Recipient (Branch Manager, [Bank Name])
-- Subject line
-- Salutation (Dear Sir/Madam)
-- Body with account details and clear request
-- Closing (Yours faithfully/sincerely)
-- Signature line with name`;
-
-    case 'RENT_RECEIPT':
-      return `${baseInstructions}
-
-Format as a rent receipt with:
-- Title: RENT RECEIPT
-- Receipt number and date
-- Landlord details
-- Tenant details
-- Property address
-- Amount received (in figures and words)
-- Period for which rent is paid
-- Payment mode and details
-- Landlord signature line`;
-
-    case 'PAYMENT_DEFAULT':
-    case 'WORK_COMPLETION_DELAY':
-    case 'FNF_NOT_PAID':
-    case 'RENT_DEFAULT':
-    case 'TENANT_EVICTION':
-    case 'LANDLORD_HARASSMENT':
-    case 'CHEQUE_BOUNCE':
-    case 'CONSUMER_COMPLAINT':
-    case 'POSSESSION_DELAY':
-    case 'DEFAMATION':
-      return `${baseInstructions}
-
-Format as a legal notice with:
-- Title: LEGAL NOTICE
-- Date
-- TO: [Recipient details]
-- FROM: [Sender details]
-- SUBJECT: [Brief description]
-- Body with:
-  1. Reference to facts and relationship
-  2. Statement of the grievance/default
-  3. Legal position and rights
-  4. Clear demand with deadline
-  5. Consequences if demand not met
-- Closing statement
-- Signature line for sender`;
-
-    default:
-      return baseInstructions;
-  }
-};
-
-// Get user prompt based on document type and payload
-const getUserPrompt = (type: DocumentType, payload: any): string => {
-  return `Generate a ${type.toLowerCase().replace(/_/g, ' ')} based on the following information:
-
-${JSON.stringify(payload, null, 2)}
-
-Important:
-- Use all provided details accurately
-- Do not add fictional information
-- If optional fields are empty, omit them gracefully
-- Follow Indian legal formatting conventions
-- Be concise but complete`;
-};
+// Note: System prompts and user prompts have been migrated to lib/ai/perplexity.ts
+// The buildDocumentPrompt function in perplexity.ts now handles all document-specific prompt generation
 
 /**
  * Main function to generate a legal document
@@ -308,45 +181,30 @@ export async function generateDocument(
         documentId: document.id,
       });
 
-      // Step 5: Generate document using OpenRouter API
-      if (!OPENROUTER_API_KEY) {
-        throw new Error('OPENROUTER_API_KEY is not configured');
+      // Step 5: Generate document using Perplexity API
+      if (!PERPLEXITY_API_KEY) {
+        throw new Error('PERPLEXITY_API_KEY is not configured');
       }
 
-      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.BASE_URL || 'http://localhost:3003',
-          'X-Title': 'Lekhai - Legal Document Generator',
-        },
-        body: JSON.stringify({
-          model: FREE_MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: getSystemPrompt(params.type),
-            },
-            {
-              role: 'user',
-              content: getUserPrompt(params.type, sanitizedPayload),
-            },
-          ],
-          max_tokens: 4096,
-          temperature: 0.7,
-        }),
-      });
+      // Use the new Perplexity integration
+      const userPrompt = buildDocumentPrompt(params.type, sanitizedPayload);
+      const perplexityResult = await generateWithPerplexity(
+        LEGAL_DOCUMENT_SYSTEM_PROMPT,
+        userPrompt,
+        {
+          model: PERPLEXITY_MODELS.SONAR_PRO, // Best quality model for legal documents
+          temperature: 0.2, // Low temperature for consistent legal language
+          maxTokens: 4096,
+        }
+      );
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenRouter API error: ${error}`);
+      if (perplexityResult.error) {
+        throw new Error(`Perplexity API error: ${perplexityResult.error}`);
       }
 
-      const data = await response.json();
-      const generatedContent = data.choices?.[0]?.message?.content;
+      const generatedContent = perplexityResult.content;
 
-      if (!generatedContent) {
+      if (!generatedContent || generatedContent.trim() === '') {
         throw new Error('No content generated from LLM');
       }
 

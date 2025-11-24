@@ -7,9 +7,13 @@ import {
   updateTeamSubscription
 } from '@/lib/db/queries';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil'
-});
+// Stripe is temporarily disabled during migration to Razorpay
+// Only initialize if STRIPE_SECRET_KEY is present
+export const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-08-27.basil' as any
+    })
+  : null;
 
 export async function createCheckoutSession({
   team,
@@ -18,13 +22,21 @@ export async function createCheckoutSession({
   team: Team | null;
   priceId: string;
 }) {
+  // Stripe is disabled during migration to Razorpay
+  throw new Error('Payment system is temporarily disabled during migration to Razorpay');
+
+  // @ts-ignore - Code after throw is unreachable
   const user = await getUser();
 
   if (!team || !user) {
     redirect(`/sign-up?redirect=checkout&priceId=${priceId}`);
   }
 
-  const session = await stripe.checkout.sessions.create({
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+
+  const session = await stripe!.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: [
       {
@@ -35,8 +47,8 @@ export async function createCheckoutSession({
     mode: 'subscription',
     success_url: `${process.env.BASE_URL}/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.BASE_URL}/pricing`,
-    customer: team.stripeCustomerId || undefined,
-    client_reference_id: user.id.toString(),
+    customer: team!.stripeCustomerId || undefined,
+    client_reference_id: user!.id.toString(),
     allow_promotion_codes: true,
     subscription_data: {
       trial_period_days: 14

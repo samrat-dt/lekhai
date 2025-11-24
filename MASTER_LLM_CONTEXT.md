@@ -7,13 +7,13 @@
 - Purpose: AI-powered legal document generation platform for India
 - Target Market: Indian citizens requiring legal documentation
 - Business Model: Credit-based document generation system
-- Technology Stack: Next.js 15, React 19, PostgreSQL, OpenRouter AI, Stripe
+- Technology Stack: Next.js 15, React 19, PostgreSQL, Perplexity AI, Razorpay (migrating from Stripe)
 
 ### Core Value Proposition
 Lekhai provides accessible, affordable legal document generation for common use cases in India. Users can generate professionally drafted legal documents through a simple form-based interface powered by AI, without requiring legal expertise or expensive lawyer consultations.
 
 ### Unique Selling Points
-1. FREE AI tier using OpenRouter (nousresearch/hermes-3-llama-3.1-405b:free model)
+1. High-quality AI using Perplexity (llama-3.1-sonar-large-128k-chat model)
 2. India-specific legal formats and language
 3. Credit-based pricing (not subscription)
 4. Instant document generation
@@ -40,10 +40,11 @@ Lekhai provides accessible, affordable legal document generation for common use 
 - Server-side rendering and streaming
 
 #### External Services
-- OpenRouter AI for LLM document generation
-- Stripe for payment processing
+- Perplexity AI for LLM document generation
+- Razorpay for payment processing (migrating from Stripe)
 - Upstash Redis for rate limiting (optional)
-- Vercel/Railway for hosting
+- Railway for database hosting
+- Vercel/Railway for application hosting
 
 #### Development Tools
 - ESLint for code linting
@@ -71,9 +72,12 @@ Lekhai provides accessible, affordable legal document generation for common use 
   /documents            # Document form components
 
 /lib
+  /ai                   # AI integration modules
+    perplexity.ts       # Perplexity API integration
+    evals.ts            # Document quality evaluation suite
   /auth                 # Authentication utilities
   /db                   # Database schema and queries
-  /payments             # Stripe integration
+  /payments             # Payment integration (Stripe legacy, Razorpay pending)
   rate-limit.ts         # Rate limiting logic
   llm-sanitize.ts       # Input sanitization
 
@@ -282,34 +286,70 @@ CREDIT_REFUNDED
 
 ### Document Types System
 
-#### Supported Document Categories
-1. Affidavits (6 types)
-2. Letters and NOCs (7 types)
-3. Agreements and Receipts (5 types)
-4. Payment Disputes (2 types)
-5. Property and Tenancy (5 types)
-6. Employment (1 type)
-7. Consumer Rights (1 type)
-8. Personal Disputes (1 type)
+#### Total Document Types: 31
+- Implemented and Functional: 9
+- Coming Soon: 22
 
-#### Implemented Document Types (Forms Complete)
-1. LOST_DOCUMENT_AFFIDAVIT
-2. NAME_CORRECTION_AFFIDAVIT
-3. ADDRESS_PROOF_AFFIDAVIT
-4. BANK_REQUEST_LETTER
-5. RENT_RECEIPT
-6. PAYMENT_DEFAULT
-7. WORK_COMPLETION_DELAY
-8. FNF_NOT_PAID
-9. RENT_DEFAULT
+#### Implemented Document Types (Fully Functional with Forms and AI Generation)
 
-#### Document Type Definitions
+**Legal Notices (4 types):**
+1. PAYMENT_DEFAULT - Payment Default Notice
+2. WORK_COMPLETION_DELAY - Work Completion / Contractor Delay Notice
+3. FNF_NOT_PAID - Full & Final Settlement Notice
+4. RENT_DEFAULT - Tenant Rent Default Notice
+
+**Affidavits (3 types):**
+5. LOST_DOCUMENT_AFFIDAVIT - Lost Document Affidavit
+6. NAME_CORRECTION_AFFIDAVIT - Name Correction Affidavit
+7. ADDRESS_PROOF_AFFIDAVIT - Address Proof Affidavit
+
+**Letters & Templates (1 type):**
+8. BANK_REQUEST_LETTER - Bank Request Letter
+
+**Agreements & Receipts (1 type):**
+9. RENT_RECEIPT - Rent Receipt Generator
+
+#### Coming Soon Document Types (Displayed with "COMING SOON" Badge, Grayed Out, Non-Clickable)
+
+**Legal Notices (6 types):**
+- TENANT_EVICTION - Tenant Eviction Notice
+- LANDLORD_HARASSMENT - Landlord Harassment / Rent Dispute Notice
+- CHEQUE_BOUNCE - Cheque Bounce Notice (Sec 138 NI Act)
+- CONSUMER_COMPLAINT - Consumer Complaint Legal Notice
+- POSSESSION_DELAY - Property Possession Delay Notice
+- DEFAMATION - Defamation / Harassment Notice
+
+**Affidavits (3 types):**
+- INCOME_DECLARATION - Income Declaration (Self-Employed)
+- SELF_DECLARATION - Self-Declaration
+- SIGNATURE_CHANGE_AFFIDAVIT - Signature Change Affidavit
+
+**Letters & Templates (6 types):**
+- NOC_GENERAL - No Objection Certificate (NOC)
+- BONAFIDE_REQUEST - Bonafide Certificate Request
+- TRAVEL_CONSENT - Travel Consent for Minors
+- LEAVE_APPLICATION - Leave Application
+- EXPERIENCE_LETTER - Experience Letter Template
+- SALARY_CERTIFICATE - Salary Certificate
+
+**Agreements & Receipts (4 types):**
+- SIMPLE_RENTAL_AGREEMENT - Simple Rental Agreement
+- ROOMMATE_AGREEMENT - Roommate Agreement
+- GIFT_DEED - Gift Deed (Movable Property)
+- GPA_ROUTINE - General Power of Attorney
+
+**Others (3 types):**
+- NOTICE_TO_VACATE - Notice to Vacate
+- MEETING_MINUTES - Minutes of Meeting (MOM)
+
+#### Document Type Configuration Structure
 Each document type includes:
 - Unique identifier (uppercase snake_case)
 - Human-readable title
 - Brief description
-- Category classification
+- Category classification (payment, property, employment, consumer, personal, affidavit, letter, agreement)
 - Urgency level (high, medium, low)
+- Implementation status (isImplemented: boolean)
 
 Example:
 ```typescript
@@ -318,7 +358,8 @@ Example:
   title: 'Payment Default Notice',
   description: 'Money not returned by friend, freelancer, contractor, or tenant',
   category: 'payment',
-  urgency: 'high'
+  urgency: 'high',
+  isImplemented: true
 }
 ```
 
@@ -345,7 +386,7 @@ Example:
    - Atomic credit deduction (prevents race conditions)
 
 4. AI Generation
-   - Sanitized inputs sent to OpenRouter API
+   - Sanitized inputs sent to Perplexity API
    - Model: nousresearch/hermes-3-llama-3.1-405b:free
    - System prompt provides legal formatting instructions
    - User prompt contains document-specific data
@@ -370,7 +411,7 @@ Example:
 - Credits never expire
 
 #### Transaction Types
-1. **PURCHASE**: User buys credits via Stripe
+1. **PURCHASE**: User buys credits via payment gateway (Razorpay planned, currently manual allocation)
 2. **DOCUMENT_GENERATION**: Credit consumed for document
 3. **REFUND**: Credit returned on failure
 
@@ -402,20 +443,41 @@ Every credit change creates a transaction record with:
 - Change amount (positive or negative)
 - Reason code
 - Metadata (JSON)
-- Stripe payment details (if applicable)
+- Payment gateway details (Stripe legacy fields, Razorpay fields pending)
 - Associated document ID (if applicable)
 - Timestamp
 
-### Payment Integration (Stripe)
+Note: Database schema still contains Stripe-specific fields (stripePaymentIntentId, stripeCheckoutSessionId) for backward compatibility. These will be supplemented with Razorpay fields when migration completes.
 
-#### Stripe Configuration
-- Test mode for development
-- Live mode for production
-- Webhook endpoint: /api/webhooks/stripe
-- Supported events: checkout.session.completed
+### Payment Integration
 
-#### Pricing Structure
-Defined in lib/payments/stripe.ts:
+#### Current Status: MIGRATION IN PROGRESS
+The platform is transitioning from Stripe to Razorpay for payment processing. Payment functionality is temporarily disabled while migration is being completed.
+
+#### Stripe (Legacy - Being Phased Out)
+- Status: DISABLED (commented out in .env)
+- Kept for reference but not active
+- Previous configuration:
+  - Test mode for development
+  - Webhook endpoint: /api/webhooks/stripe
+  - Supported events: checkout.session.completed
+
+#### Razorpay (Target Payment Gateway)
+- Status: PENDING SETUP
+- Environment variables prepared in .env:
+  - RAZORPAY_KEY_ID (pending)
+  - RAZORPAY_KEY_SECRET (pending)
+  - RAZORPAY_WEBHOOK_SECRET (pending)
+- Reason for migration: Better support for Indian payment methods and compliance
+
+#### Temporary Credit Allocation
+During migration period:
+- Credits manually allocated from backend/database
+- No automated payment processing
+- Direct database insertion into userCredits and creditTransactions tables
+
+#### Pricing Structure (Planned)
+Target pricing tiers for Razorpay:
 ```typescript
 Example pricing tiers:
 - 10 credits: ₹99
@@ -423,67 +485,218 @@ Example pricing tiers:
 - 100 credits: ₹699
 ```
 
-#### Payment Flow
+#### Future Payment Flow (Razorpay)
 1. User clicks "Buy Credits" on pricing page
-2. Stripe Checkout session created
-3. User redirected to Stripe payment page
-4. User completes payment
-5. Stripe webhook fires checkout.session.completed
+2. Razorpay Order created via API
+3. User sees Razorpay checkout modal
+4. User completes payment (UPI/Cards/Wallets/NetBanking)
+5. Razorpay webhook fires payment.captured
 6. Server verifies webhook signature
-7. Credits added to user account
+7. Credits added to user account atomically
 8. Transaction recorded in database
-9. User redirected back to dashboard
+9. User sees updated balance on dashboard
 
-### AI Integration (OpenRouter)
+### AI Integration (Perplexity)
+
+#### How AI is Used in Lekhai
+Lekhai uses AI (Large Language Models via Perplexity API) to automatically generate professionally formatted legal documents based on user-provided information. The AI acts as a legal document drafting assistant specifically trained for Indian legal contexts.
+
+**Core AI Functionality:**
+1. **Document Generation**: Users fill out simple forms, AI transforms the inputs into complete, professionally formatted legal documents
+2. **Legal Language**: AI applies proper legal terminology, clauses, and formatting conventions for India
+3. **Customization**: Each document is uniquely generated based on specific user inputs (names, dates, amounts, circumstances)
+4. **Quality**: Uses Perplexity's Llama 3.1 Sonar Large model optimized for reasoning and factual accuracy
+
+**Example Workflow:**
+- User fills "Payment Default Notice" form with: debtor name, amount owed, payment date, reminder dates
+- AI receives this data and generates a complete legal notice with:
+  - Proper legal header and formatting
+  - Introduction identifying parties
+  - Statement of facts (debt details)
+  - Legal demand for payment
+  - Consequences of non-payment
+  - Signature block with proper legal language
+  - Indian date/currency formats
 
 #### API Configuration
-- Base URL: https://openrouter.ai/api/v1
-- Model: nousresearch/hermes-3-llama-3.1-405b:free
+- Provider: Perplexity AI
+- Base URL: https://api.perplexity.ai
+- Endpoint: /chat/completions
+- Model: llama-3.1-sonar-large-128k-chat (optimized for conversational tasks and document generation)
 - Authentication: Bearer token in Authorization header
-- Custom headers:
-  - HTTP-Referer: Process.env.BASE_URL
-  - X-Title: "Lekhai - Legal Document Generator"
+- Temperature: 0.2 (low for consistent legal language)
+- Max Tokens: 4096 (sufficient for most legal documents)
 
-#### Request Structure
+**Available Perplexity Models:**
+- `llama-3.1-sonar-small-128k-online` - Smaller model with web search (not used)
+- `llama-3.1-sonar-large-128k-online` - Large model with web search (not used)
+- `llama-3.1-sonar-huge-128k-online` - Largest model with web search (not used)
+- `llama-3.1-sonar-small-128k-chat` - Small chat model
+- `llama-3.1-sonar-large-128k-chat` - **USED** - Best for legal document generation
+
+**Why Chat Model (Not Online):**
+- Legal documents don't need web search or real-time information
+- Chat models are optimized for conversational, structured output
+- Better formatting and consistency for document generation
+- Lower latency without unnecessary web searches
+
+#### Module Structure
+Implementation is split across three modules for maintainability:
+
+**lib/ai/perplexity.ts** - Main integration module
+- `generateWithPerplexity()` - Core API calling function
+- `LEGAL_DOCUMENT_SYSTEM_PROMPT` - Universal system prompt for all document types
+- `buildDocumentPrompt()` - Document-type-specific user prompt builder
+- Error handling and retry logic
+- Response validation
+
+**lib/ai/evals.ts** - Quality evaluation suite
+- `evaluateDocument()` - Comprehensive quality checker
+- Checks for required sections, proper formatting, Indian legal conventions
+- Validates inclusion of input data, detects AI fluff words
+- Scoring system (0-100) with pass threshold at 70%
+- Automated test cases for each document type
+
+**app/(dashboard)/dashboard/documents/actions.ts** - Server actions
+- Credit check and deduction
+- Payload sanitization (prompt injection prevention)
+- Document generation orchestration
+- Database updates and transaction logging
+
+#### System Prompt (Universal for All Document Types)
+The system prompt is centralized and comprehensive:
+
 ```typescript
-{
-  model: "nousresearch/hermes-3-llama-3.1-405b:free",
-  messages: [
-    {
-      role: "system",
-      content: getSystemPrompt(documentType)
-    },
-    {
-      role: "user",
-      content: getUserPrompt(documentType, sanitizedPayload)
-    }
-  ],
-  max_tokens: 4096,
-  temperature: 0.7
-}
+You are an expert legal document drafting assistant specialized in Indian law and legal procedures.
+
+CRITICAL REQUIREMENTS:
+
+1. INDIAN LEGAL CONTEXT:
+   - All documents must follow Indian legal formats and conventions
+   - Use Indian date format (DD/MM/YYYY)
+   - Use Indian currency (₹ or Rs.)
+   - Reference relevant Indian laws when applicable
+   - Use proper legal terminology as used in Indian courts
+
+2. DOCUMENT FORMATTING:
+   - Use clear, professional formatting
+   - Include proper headers, sections, and numbering
+   - Maintain formal legal language throughout
+   - Include signature blocks where appropriate
+
+3. ACCURACY AND COMPLETENESS:
+   - Include all information provided by the user
+   - Do not fabricate any facts, dates, names, or amounts
+   - Use proper legal clauses and standard language
+
+4. TONE AND STYLE:
+   - Professional and formal tone
+   - Clear and unambiguous language
+   - Authoritative but respectful
+
+5. OUTPUT FORMAT:
+   - Return ONLY the final document text
+   - Do not include any explanations or meta-commentary
+   - Start directly with the document content
 ```
 
-#### System Prompts
-Tailored for each document type with instructions for:
-- Legal formatting standards
-- Indian legal language conventions
-- Required sections and clauses
-- Date format (DD/MM/YYYY)
-- Currency format (₹)
-- Professional tone
+#### User Prompts (Document-Type-Specific)
+Each document type has a tailored prompt builder in `buildDocumentPrompt()`:
 
-#### User Prompts
-Dynamically generated from form inputs, containing:
-- Party details (names, addresses, contacts)
-- Transaction/dispute specifics
-- Dates and amounts
-- Additional context
+**Payment Default Notice:**
+- Creditor and debtor details (names, addresses)
+- Amount owed and transaction nature
+- Payment date and reminder history
+- Legal demand with 15-day deadline
+- Warning of legal action under CPC
+
+**Affidavits (Lost Document, Name Correction, Address Proof):**
+- Deponent details (name, father's/husband's name, DOB, address)
+- Specific affidavit details (document lost, name error, current address)
+- Verification clause and signature block format
+- Purpose of affidavit
+
+**Legal Notices (Rent Default, Work Delay, F&F):**
+- Sender and recipient details
+- Nature of dispute or default
+- Specific amounts and dates
+- Legal demand with deadline
+- Consequences of non-compliance
+
+**Receipts and Letters:**
+- Standard business letter format
+- Transaction details (rent receipts)
+- Bank request specifications
+- Professional formatting
 
 #### Response Handling
-- Extract content from choices[0].message.content
-- Validate non-empty response
-- Store in database as generated_content
-- Display to user with formatting preserved
+```typescript
+const result = await generateWithPerplexity(
+  LEGAL_DOCUMENT_SYSTEM_PROMPT,
+  userPrompt,
+  {
+    model: PERPLEXITY_MODELS.CHAT_LARGE,
+    temperature: 0.2,
+    maxTokens: 4096,
+  }
+);
+
+if (result.error) {
+  // Handle error, refund credit
+}
+
+const generatedContent = result.content;
+// Store in database, update status to GENERATED
+```
+
+#### Quality Evaluation
+After generation, documents can be evaluated using the evaluation suite:
+
+```typescript
+import { evaluateDocument } from '@/lib/ai/evals';
+
+const evaluation = evaluateDocument(
+  documentType,
+  generatedContent,
+  inputPayload
+);
+
+// evaluation.passed - boolean (score >= 70%)
+// evaluation.score - number (0-100)
+// evaluation.issues - string[] (problems found)
+// evaluation.suggestions - string[] (improvements)
+```
+
+**Evaluation Criteria (13 checks):**
+1. ✓ Proper document title
+2. ✓ Required sections present
+3. ✓ Proper formatting and spacing
+4. ✓ All input data included
+5. ✓ No fabricated information
+6. ✓ Proper legal language
+7. ✓ Indian date format (DD/MM/YYYY)
+8. ✓ Indian currency (₹ or Rs.)
+9. ✓ Indian legal conventions
+10. ✓ No AI fluff words (delve, meticulously, tapestry, etc.)
+11. ✓ Professional tone (no casual language)
+12. ✓ No typos or common errors
+13. ✓ Contextually appropriate
+
+**Scoring Weights:**
+- Input data inclusion: 20 points
+- Required sections: 15 points
+- No fabrication: 15 points
+- Proper title: 10 points
+- Legal language: 10 points
+- Other criteria: 30 points combined
+
+#### AI Safety Measures
+1. **Input Sanitization**: All user inputs sanitized before sending to AI (prevents prompt injection)
+2. **Output Validation**: Generated content validated for non-empty response
+3. **Rate Limiting**: Maximum 10 document generations per hour per user
+4. **Credit System**: Each generation costs 1 credit (prevents abuse)
+5. **Error Handling**: Automatic credit refund if generation fails
+6. **Quality Evaluation**: Automated checks for document quality and completeness
 
 ### Security Implementation
 
@@ -674,8 +887,8 @@ Layout:
   - Credit amount
   - Price in ₹
   - Per-document cost
-  - "Buy Now" button
-- Stripe Checkout integration
+  - "Buy Now" button (currently disabled during payment migration)
+- Payment integration: Transitioning from Stripe to Razorpay
 
 ### Form Components
 
@@ -864,19 +1077,26 @@ Fields:
 12. On success: redirected to document detail page
 13. On failure: error message shown, credit refunded
 
-#### Credit Purchase Flow
+#### Credit Purchase Flow (Currently Disabled)
+CURRENT STATUS: Payment system temporarily disabled during Stripe to Razorpay migration.
+
+Temporary workflow:
+1. Credits manually allocated from backend/database by admin
+2. Direct database insertion into userCredits and creditTransactions tables
+
+Future workflow (Razorpay):
 1. User clicks "Buy Credits" from dashboard or pricing page
 2. Selects credit package
 3. Clicks "Buy Now"
-4. Stripe Checkout session created
-5. Redirected to Stripe payment page
-6. Enters payment details
+4. Razorpay Order created via API
+5. Razorpay checkout modal appears
+6. User selects payment method (UPI/Cards/Wallets/NetBanking)
 7. Completes payment
-8. Stripe webhook fires
-9. Credits added to account
-10. User redirected back to dashboard
+8. Razorpay webhook fires (payment.captured)
+9. Credits added to account atomically
+10. User sees updated balance on dashboard
 11. Success message shown
-12. New balance reflected
+12. Transaction recorded in creditTransactions table
 
 #### Document Management
 1. User views all documents at /dashboard/documents
@@ -977,11 +1197,11 @@ AUTH_SECRET=[base64 32-byte string]
 ```
 Generate with: openssl rand -base64 32
 
-**OpenRouter AI**
+**Perplexity AI**
 ```
-OPENROUTER_API_KEY=sk-or-v1-[key]
+PERPLEXITY_API_KEY=pplx-[key]
 ```
-Get from: https://openrouter.ai/keys
+Get from: https://www.perplexity.ai/settings/api
 
 **Encryption**
 ```
@@ -995,11 +1215,16 @@ BASE_URL=http://localhost:3003  # Development
 BASE_URL=https://lekhai.com     # Production
 ```
 
-**Stripe (Optional)**
+**Payment Gateways**
 ```
-STRIPE_SECRET_KEY=sk_test_[key]  # Test mode
-STRIPE_SECRET_KEY=sk_live_[key]  # Live mode
-STRIPE_WEBHOOK_SECRET=whsec_[secret]
+# Stripe (LEGACY - Currently Disabled)
+# STRIPE_SECRET_KEY=sk_test_[key]  # Test mode
+# STRIPE_WEBHOOK_SECRET=whsec_[secret]
+
+# Razorpay (CURRENT - Pending Setup)
+# RAZORPAY_KEY_ID=[key_id]
+# RAZORPAY_KEY_SECRET=[key_secret]
+# RAZORPAY_WEBHOOK_SECRET=[webhook_secret]
 ```
 
 **Redis (Optional - for rate limiting)**
@@ -1007,6 +1232,16 @@ STRIPE_WEBHOOK_SECRET=whsec_[secret]
 UPSTASH_REDIS_REST_URL=https://[id].upstash.io
 UPSTASH_REDIS_REST_TOKEN=[token]
 ```
+
+#### Credential Rotation Status
+All credentials have been rotated for security:
+- AUTH_SECRET: Rotated (new 32-byte secure key)
+- ENCRYPTION_KEY: Added (new 32-byte secure key)
+- PERPLEXITY_API_KEY: Active (migrated from OpenRouter)
+- POSTGRES_URL: Migrated to new Railway database
+- Old exposed credentials have been invalidated
+- Stripe keys: Commented out (migration to Razorpay in progress)
+- OpenRouter: Deprecated and removed
 
 #### Configuration Loading
 - Variables loaded via Next.js env system
@@ -1287,16 +1522,16 @@ git push origin feature/name
 - Verify domain matches
 
 **AI Generation Failing**
-- Verify OPENROUTER_API_KEY is valid
+- Verify PERPLEXITY_API_KEY is valid
 - Check API rate limits
 - Verify network connectivity
 - Check payload size
 
-**Stripe Webhook Not Firing**
-- Verify webhook URL is public
-- Check webhook secret matches
-- Test webhook locally with Stripe CLI
-- Check webhook signature validation
+**Payment System Issues**
+- Current status: Payment system disabled during Stripe to Razorpay migration
+- For credit allocation: Manually insert into userCredits and creditTransactions tables
+- Stripe webhooks: Currently not in use (commented out)
+- Razorpay integration: Pending setup (environment variables ready)
 
 **Rate Limiting Not Working**
 - Verify Redis credentials (if using)

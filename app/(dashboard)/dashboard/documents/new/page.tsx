@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DOCUMENT_TYPE_INFO, DOCUMENT_CATEGORIES, DocumentType } from '@/lib/document-types';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { generateDocument, DocumentType as ActionDocumentType } from '../actions';
@@ -71,20 +71,34 @@ export default function NewDocumentPage() {
           {filteredTypes.map((docType) => (
             <button
               key={docType.id}
-              className="p-6 border border-border hover:border-foreground transition-all cursor-pointer text-left group"
-              onClick={() => setSelectedType(docType.id)}
+              className={`p-6 border transition-all text-left group ${
+                docType.isImplemented
+                  ? 'border-border hover:border-foreground cursor-pointer'
+                  : 'border-border cursor-not-allowed opacity-50'
+              }`}
+              onClick={() => docType.isImplemented && setSelectedType(docType.id)}
+              disabled={!docType.isImplemented}
             >
               <div className="flex items-start justify-between mb-4">
                 <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
                   {docType.category}
                 </span>
-                {docType.urgency === 'high' && (
-                  <span className="text-xs px-2 py-0.5 border border-destructive text-destructive">
-                    Urgent
-                  </span>
-                )}
+                <div className="flex gap-2">
+                  {!docType.isImplemented && (
+                    <span className="text-xs px-2 py-0.5 border border-muted-foreground text-muted-foreground">
+                      COMING SOON
+                    </span>
+                  )}
+                  {docType.urgency === 'high' && docType.isImplemented && (
+                    <span className="text-xs px-2 py-0.5 border border-destructive text-destructive">
+                      Urgent
+                    </span>
+                  )}
+                </div>
               </div>
-              <h3 className="font-semibold text-foreground mb-2 group-hover:underline">{docType.title}</h3>
+              <h3 className={`font-semibold mb-2 ${docType.isImplemented ? 'text-foreground group-hover:underline' : 'text-muted-foreground'}`}>
+                {docType.title}
+              </h3>
               <p className="text-sm text-muted-foreground">{docType.description}</p>
             </button>
           ))}
@@ -116,17 +130,21 @@ function DocumentForm({ documentType }: { documentType: DocumentType }) {
     return mapping[type] || null;
   };
 
+  const [generationStatus, setGenerationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [generatedDocumentId, setGeneratedDocumentId] = useState<number | null>(null);
+
   const handleSubmit = async (payload: any) => {
     setIsSubmitting(true);
+    setGenerationStatus('loading');
+    setGenerationError(null);
 
     try {
       const actionType = mapDocumentType(documentType);
       if (!actionType) {
-        toast({
-          title: 'Error',
-          description: 'This document type is not yet supported',
-          variant: 'destructive',
-        });
+        setGenerationError('This document type is not yet supported');
+        setGenerationStatus('error');
+        setIsSubmitting(false);
         return;
       }
 
@@ -136,25 +154,20 @@ function DocumentForm({ documentType }: { documentType: DocumentType }) {
       });
 
       if (result.success && result.documentId) {
-        toast({
-          title: 'Success',
-          description: result.message || 'Document generated successfully',
-        });
-        router.push(`/dashboard/documents/${result.documentId}`);
+        setGenerationStatus('success');
+        setGeneratedDocumentId(result.documentId);
+        // Auto-redirect after showing success state for 1 second
+        setTimeout(() => {
+          router.push(`/dashboard/documents/${result.documentId}`);
+        }, 1000);
       } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to generate document',
-          variant: 'destructive',
-        });
+        setGenerationError(result.error || 'Failed to generate document');
+        setGenerationStatus('error');
+        setIsSubmitting(false);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-    } finally {
+      setGenerationError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setGenerationStatus('error');
       setIsSubmitting(false);
     }
   };
@@ -207,6 +220,82 @@ function DocumentForm({ documentType }: { documentType: DocumentType }) {
           {renderForm()}
         </div>
       </div>
+
+      {/* Loading Modal */}
+      {generationStatus === 'loading' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-10 h-10 text-foreground animate-spin" />
+              <div className="text-center">
+                <p className="text-foreground font-medium">Generating your document...</p>
+                <p className="text-sm text-muted-foreground mt-1">This may take a few moments</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {generationStatus === 'success' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+            <div className="flex flex-col items-center gap-4">
+              <CheckCircle className="w-10 h-10 text-foreground" />
+              <div className="text-center">
+                <p className="text-foreground font-medium">Document generated successfully!</p>
+                <p className="text-sm text-muted-foreground mt-1">Redirecting...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {generationStatus === 'error' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border border-destructive/30 p-8 rounded-lg shadow-lg max-w-sm mx-auto">
+            <div className="flex items-start gap-4 mb-4">
+              <AlertCircle className="w-6 h-6 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">Generation Failed</h3>
+                <p className="text-sm text-muted-foreground">{generationError}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setGenerationStatus('idle');
+                  setGenerationError(null);
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex gap-3 mt-6 pt-4 border-t border-border">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setGenerationStatus('idle');
+                  setGenerationError(null);
+                }}
+              >
+                Try Again
+              </Button>
+              <Link href="/dashboard/documents" className="flex-1">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full bg-primary hover:bg-accent"
+                >
+                  Go to Documents
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

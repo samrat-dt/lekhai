@@ -5,7 +5,8 @@ import { eq, desc } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { PlusCircle, FileText, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { DOCUMENT_TYPE_INFO } from '@/lib/document-types';
 
 export default async function DocumentsPage() {
   const user = await getUser();
@@ -62,42 +63,51 @@ export default async function DocumentsPage() {
         ) : (
           <div className="border border-border">
             <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-muted/30 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <div className="col-span-4">Title</div>
+              <div className="col-span-3">Title</div>
               <div className="col-span-3">Type</div>
               <div className="col-span-2">Status</div>
+              <div className="col-span-1">Urgency</div>
               <div className="col-span-2">Created</div>
               <div className="col-span-1 text-right">Action</div>
             </div>
             <div className="divide-y divide-border">
-              {documents.map((doc) => (
-                <Link
-                  key={doc.id}
-                  href={`/dashboard/documents/${doc.id}`}
-                  className="grid grid-cols-12 gap-4 px-6 py-5 hover:bg-muted/20 transition-colors"
-                >
-                  <div className="col-span-4">
-                    <div className="text-sm font-medium text-foreground">{doc.title}</div>
-                  </div>
-                  <div className="col-span-3">
-                    <div className="text-sm text-muted-foreground">
-                      {doc.type.replace(/_/g, ' ')}
+              {documents.map((doc) => {
+                const docInfo = DOCUMENT_TYPE_INFO[doc.type as keyof typeof DOCUMENT_TYPE_INFO];
+                const urgency = docInfo?.urgency || 'low';
+
+                return (
+                  <Link
+                    key={doc.id}
+                    href={`/dashboard/documents/${doc.id}`}
+                    className="grid grid-cols-12 gap-4 px-6 py-5 hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="col-span-3">
+                      <div className="text-sm font-medium text-foreground">{doc.title}</div>
                     </div>
-                  </div>
-                  <div className="col-span-2">
-                    <StatusBadge status={doc.status} />
-                  </div>
-                  <div className="col-span-2 text-sm text-muted-foreground">
-                    {new Date(doc.createdAt).toLocaleDateString('en-IN', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                  </div>
-                  <div className="col-span-1 text-right text-sm font-medium text-foreground">
-                    →
-                  </div>
-                </Link>
-              ))}
+                    <div className="col-span-3">
+                      <div className="text-sm text-muted-foreground">
+                        {doc.type.replace(/_/g, ' ')}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <StatusBadge status={doc.status} />
+                    </div>
+                    <div className="col-span-1">
+                      <UrgencyBadge urgency={urgency} />
+                    </div>
+                    <div className="col-span-2 text-sm text-muted-foreground">
+                      {new Date(doc.createdAt).toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                      })}
+                    </div>
+                    <div className="col-span-1 text-right text-sm font-medium text-foreground">
+                      →
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
@@ -136,6 +146,34 @@ function StatusBadge({ status }: { status: string }) {
         <span className="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium border border-destructive text-destructive">
           <span className="w-1.5 h-1.5 bg-destructive" />
           Failed
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
+function UrgencyBadge({ urgency }: { urgency: 'high' | 'medium' | 'low' }) {
+  switch (urgency) {
+    case 'high':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium border border-destructive text-destructive">
+          <AlertCircle className="w-3 h-3" />
+          High
+        </span>
+      );
+    case 'medium':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium border border-foreground/50 text-foreground">
+          <AlertTriangle className="w-3 h-3" />
+          Med
+        </span>
+      );
+    case 'low':
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium border border-muted-foreground/30 text-muted-foreground">
+          <Info className="w-3 h-3" />
+          Low
         </span>
       );
     default:

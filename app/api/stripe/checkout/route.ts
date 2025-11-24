@@ -15,6 +15,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 500 }
+      );
+    }
+
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ['customer', 'subscription'],
     });
