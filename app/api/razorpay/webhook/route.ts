@@ -57,8 +57,7 @@ export async function POST(request: NextRequest) {
         const credits = parseInt(notes.credits);
 
         // Verify payment using the order ID and payment ID
-        const orderDetails = await request.json().catch(() => ({}));
-
+        // Note: body already consumed as text() above, use parsed payload instead
         const result = await verifyPayment(
           payment.order_id,
           payment.id,

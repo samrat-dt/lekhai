@@ -258,13 +258,7 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   }),
 }));
 
-// Update users relations to include new tables
-export const usersRelationsUpdated = relations(users, ({ many }) => ({
-  teamMembers: many(teamMembers),
-  invitationsSent: many(invitations),
-  legalDocuments: many(legalDocuments),
-  creditTransactions: many(creditTransactions),
-}));
+// Removed duplicate relation definition - usersRelations above is the source of truth
 
 // TypeScript types for new tables
 export type LegalDocument = typeof legalDocuments.$inferSelect;
