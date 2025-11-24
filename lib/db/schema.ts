@@ -28,11 +28,6 @@ export const teams = pgTable('teams', {
   name: varchar('name', { length: 100 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  stripeCustomerId: text('stripe_customer_id').unique(),
-  stripeSubscriptionId: text('stripe_subscription_id').unique(),
-  stripeProductId: text('stripe_product_id'),
-  planName: varchar('plan_name', { length: 50 }),
-  subscriptionStatus: varchar('subscription_status', { length: 20 }),
 });
 
 export const teamMembers = pgTable('team_members', {
@@ -220,17 +215,14 @@ export const creditTransactions = pgTable('credit_transactions', {
     .notNull()
     .references(() => users.id),
   change: integer('change').notNull(), // positive for purchase, negative for consumption
-  reason: varchar('reason', { length: 50 }).notNull(), // 'PURCHASE' | 'DOCUMENT_GENERATION'
+  reason: varchar('reason', { length: 50 }).notNull(), // 'PURCHASE' | 'DOCUMENT_GENERATION' | 'RAZORPAY_PAYMENT'
   metadata: text('metadata'), // JSON string for additional data
-  stripePaymentIntentId: text('stripe_payment_intent_id'),
-  stripeCheckoutSessionId: text('stripe_checkout_session_id'),
   documentId: integer('document_id').references(() => legalDocuments.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   userIdIdx: index('credit_transactions_user_id_idx').on(table.userId),
   reasonIdx: index('credit_transactions_reason_idx').on(table.reason),
   createdAtIdx: index('credit_transactions_created_at_idx').on(table.createdAt),
-  stripePaymentIntentIdx: index('credit_transactions_stripe_payment_intent_idx').on(table.stripePaymentIntentId),
 }));
 
 // Relations for new tables

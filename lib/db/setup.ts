@@ -1,216 +1,111 @@
-import { exec } from 'node:child_process';
-import { promises as fs } from 'node:fs';
-import { promisify } from 'node:util';
-import readline from 'node:readline';
-import crypto from 'node:crypto';
-import path from 'node:path';
-import os from 'node:os';
+import { writeFile } from 'fs/promises';
+import { createInterface } from 'readline';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 
 const execAsync = promisify(exec);
 
-function question(query: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+const rl = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+const question = (prompt: string): Promise<string> =>
+  new Promise((resolve) => {
+    rl.question(prompt, (answer) => {
+      resolve(answer.trim());
+    });
   });
 
-  return new Promise((resolve) =>
-    rl.question(query, (ans) => {
-      rl.close();
-      resolve(ans);
-    })
-  );
-}
-
-async function checkStripeCLI() {
-  console.log(
-    'Step 1: Checking if Stripe CLI is installed and authenticated...'
-  );
-  try {
-    await execAsync('stripe --version');
-    console.log('Stripe CLI is installed.');
-
-    // Check if Stripe CLI is authenticated
-    try {
-      await execAsync('stripe config --list');
-      console.log('Stripe CLI is authenticated.');
-    } catch (error) {
-      console.log(
-        'Stripe CLI is not authenticated or the authentication has expired.'
-      );
-      console.log('Please run: stripe login');
-      const answer = await question(
-        'Have you completed the authentication? (y/n): '
-      );
-      if (answer.toLowerCase() !== 'y') {
-        console.log(
-          'Please authenticate with Stripe CLI and run this script again.'
-        );
-        process.exit(1);
-      }
-
-      // Verify authentication after user confirms login
-      try {
-        await execAsync('stripe config --list');
-        console.log('Stripe CLI authentication confirmed.');
-      } catch (error) {
-        console.error(
-          'Failed to verify Stripe CLI authentication. Please try again.'
-        );
-        process.exit(1);
-      }
-    }
-  } catch (error) {
-    console.error(
-      'Stripe CLI is not installed. Please install it and try again.'
-    );
-    console.log('To install Stripe CLI, follow these steps:');
-    console.log('1. Visit: https://docs.stripe.com/stripe-cli');
-    console.log(
-      '2. Download and install the Stripe CLI for your operating system'
-    );
-    console.log('3. After installation, run: stripe login');
-    console.log(
-      'After installation and authentication, please run this setup script again.'
-    );
-    process.exit(1);
-  }
-}
-
 async function getPostgresURL(): Promise<string> {
-  console.log('Step 2: Setting up Postgres');
-  const dbChoice = await question(
-    'Do you want to use a local Postgres instance with Docker (L) or a remote Postgres instance (R)? (L/R): '
-  );
-
-  if (dbChoice.toLowerCase() === 'l') {
-    console.log('Setting up local Postgres instance with Docker...');
-    await setupLocalPostgres();
-    return 'postgres://postgres:postgres@localhost:54322/postgres';
-  } else {
-    console.log(
-      'You can find Postgres databases at: https://vercel.com/marketplace?category=databases'
-    );
-    return await question('Enter your POSTGRES_URL: ');
-  }
-}
-
-async function setupLocalPostgres() {
-  console.log('Checking if Docker is installed...');
-  try {
-    await execAsync('docker --version');
-    console.log('Docker is installed.');
-  } catch (error) {
-    console.error(
-      'Docker is not installed. Please install Docker and try again.'
-    );
-    console.log(
-      'To install Docker, visit: https://docs.docker.com/get-docker/'
-    );
-    process.exit(1);
-  }
-
-  console.log('Creating docker-compose.yml file...');
-  const dockerComposeContent = `
-services:
-  postgres:
-    image: postgres:16.4-alpine
-    container_name: next_saas_starter_postgres
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "54322:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
-`;
-
-  await fs.writeFile(
-    path.join(process.cwd(), 'docker-compose.yml'),
-    dockerComposeContent
-  );
-  console.log('docker-compose.yml file created.');
-
-  console.log('Starting Docker container with `docker compose up -d`...');
-  try {
-    await execAsync('docker compose up -d');
-    console.log('Docker container started successfully.');
-  } catch (error) {
-    console.error(
-      'Failed to start Docker container. Please check your Docker installation and try again.'
-    );
-    process.exit(1);
-  }
-}
-
-async function getStripeSecretKey(): Promise<string> {
-  console.log('Step 3: Getting Stripe Secret Key');
+  console.log('\n📦 Step 1: Setting up PostgreSQL');
   console.log(
-    'You can find your Stripe Secret Key at: https://dashboard.stripe.com/test/apikeys'
+    'You can use any PostgreSQL provider (Railway, Neon, AWS RDS, etc.)'
   );
-  return await question('Enter your Stripe Secret Key: ');
-}
+  console.log('Example: postgresql://user:password@localhost:5432/lekhai\n');
 
-async function createStripeWebhook(): Promise<string> {
-  console.log('Step 4: Creating Stripe webhook...');
-  try {
-    const { stdout } = await execAsync('stripe listen --print-secret');
-    const match = stdout.match(/whsec_[a-zA-Z0-9]+/);
-    if (!match) {
-      throw new Error('Failed to extract Stripe webhook secret');
-    }
-    console.log('Stripe webhook created.');
-    return match[0];
-  } catch (error) {
-    console.error(
-      'Failed to create Stripe webhook. Check your Stripe CLI installation and permissions.'
-    );
-    if (os.platform() === 'win32') {
-      console.log(
-        'Note: On Windows, you may need to run this script as an administrator.'
-      );
-    }
-    throw error;
-  }
+  return await question('Enter your PostgreSQL connection URL: ');
 }
 
 function generateAuthSecret(): string {
-  console.log('Step 5: Generating AUTH_SECRET...');
-  return crypto.randomBytes(32).toString('hex');
+  const crypto = require('crypto');
+  return crypto.randomBytes(32).toString('base64');
 }
 
-async function writeEnvFile(envVars: Record<string, string>) {
-  console.log('Step 6: Writing environment variables to .env');
-  const envContent = Object.entries(envVars)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('\n');
+async function writeEnvFile(config: Record<string, string>) {
+  const envContent = `# ===== DATABASE =====
+POSTGRES_URL=${config.POSTGRES_URL}
 
-  await fs.writeFile(path.join(process.cwd(), '.env'), envContent);
-  console.log('.env file created with the necessary variables.');
+# ===== AUTHENTICATION =====
+AUTH_SECRET=${config.AUTH_SECRET}
+
+# ===== BASE URL =====
+NEXT_PUBLIC_APP_URL=${config.BASE_URL}
+BASE_URL=${config.BASE_URL}
+
+# ===== EMAIL SERVICE (Resend) =====
+# Get from https://resend.com
+RESEND_API_KEY=re_your_resend_api_key_here
+RESEND_FROM_EMAIL=noreply@lekhai.com
+
+# ===== PAYMENTS (Razorpay) =====
+# Get from https://razorpay.com
+RAZORPAY_KEY_ID=rzp_test_your_key_id_here
+RAZORPAY_KEY_SECRET=your_razorpay_secret_here
+RAZORPAY_WEBHOOK_SECRET=whsec_your_razorpay_webhook_secret_here
+
+# ===== ERROR TRACKING (Sentry) =====
+# Get from https://sentry.io
+SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+NEXT_PUBLIC_SENTRY_DSN=https://your-sentry-dsn@sentry.io/project-id
+
+# ===== AI & DOCUMENT GENERATION =====
+# OpenRouter API Key (FREE - Get from https://openrouter.ai/keys)
+OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
+
+# ===== ENCRYPTION =====
+ENCRYPTION_KEY=your_generated_encryption_key_here
+
+# ===== REDIS / CACHING (Optional) =====
+UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
+`;
+
+  const envPath = resolve(process.cwd(), '.env');
+  
+  if (existsSync(envPath)) {
+    console.log('⚠️  .env file already exists. Skipping...');
+    return;
+  }
+
+  await writeFile(envPath, envContent);
+  console.log('✅ .env file created successfully!\n');
 }
 
 async function main() {
-  await checkStripeCLI();
+  console.log('\n🚀 Lekhai Setup');
+  console.log('===============\n');
 
   const POSTGRES_URL = await getPostgresURL();
-  const STRIPE_SECRET_KEY = await getStripeSecretKey();
-  const STRIPE_WEBHOOK_SECRET = await createStripeWebhook();
   const BASE_URL = 'http://localhost:3000';
   const AUTH_SECRET = generateAuthSecret();
 
   await writeEnvFile({
     POSTGRES_URL,
-    STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET,
     BASE_URL,
     AUTH_SECRET,
   });
 
-  console.log('🎉 Setup completed successfully!');
+  console.log('✅ Setup completed successfully!');
+  console.log('\nNext steps:');
+  console.log('1. Run: npm run db:migrate');
+  console.log('2. Run: npm run db:seed');
+  console.log('3. Run: npm run dev');
+  console.log('\n📝 Update .env with your actual API keys when ready.\n');
+  
+  rl.close();
 }
 
 main().catch(console.error);
