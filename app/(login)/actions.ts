@@ -217,15 +217,8 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     role: userRole
   };
 
-  // EARLY USER PROMOTION: First 3 users get 10 free credits
-  // Check total user count to determine if this is one of the first 3 users
-  const totalUsers = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(users);
-
-  const userCount = Number(totalUsers[0]?.count || 0);
-  const isEarlyUser = userCount <= 3;
-  const initialCredits = isEarlyUser ? 10 : 0;
+  // ALL NEW USERS: Get 10 free credits as welcome bonus
+  const initialCredits = 10;
 
   // Initialize user credits
   const newUserCredits: NewUserCredits = {
@@ -240,19 +233,16 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
     setSession(createdUser)
   ]);
 
-  // Log the promotional credit transaction if user received credits
-  if (isEarlyUser && initialCredits > 0) {
-    await db.insert(creditTransactions).values({
-      userId: createdUser.id,
-      change: initialCredits,
-      reason: 'PROMOTION',
-      metadata: JSON.stringify({
-        promotion: 'EARLY_USER_BONUS',
-        userNumber: userCount,
-        description: 'Welcome bonus for being one of the first 3 users! Enjoy 10 free credits.'
-      })
-    });
-  }
+  // Log the welcome credit transaction
+  await db.insert(creditTransactions).values({
+    userId: createdUser.id,
+    change: initialCredits,
+    reason: 'PROMOTION',
+    metadata: JSON.stringify({
+      promotion: 'NEW_USER_WELCOME_BONUS',
+      description: 'Welcome bonus for new users! Get started with 10 free credits.'
+    })
+  });
 
   redirect('/dashboard');
 });
