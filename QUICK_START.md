@@ -15,20 +15,19 @@ Since local PostgreSQL requires admin access, we'll use free cloud services. Thi
 
 ## Step 2: Get API Keys (3 minutes)
 
-### Stripe Test Key (1 minute)
-1. Go to https://dashboard.stripe.com/register
-2. Sign up (email + password)
-3. Skip onboarding (click "Skip for now" buttons)
-4. Go to Developers > API Keys: https://dashboard.stripe.com/test/apikeys
-5. Copy the "Secret key" (starts with `sk_test_`)
+### OpenRouter API Key (1 minute)
+1. Go to https://openrouter.ai/
+2. Sign up or sign in
+3. Go to Settings > API Keys
+4. Create a new API key
+5. Copy the key (starts with `sk-or-v1-`)
 
-### Claude API Key (2 minutes)
-1. Go to https://console.anthropic.com/
-2. Sign in with email/Google
-3. Click "Get API keys" or go to Settings > API Keys
-4. Click "Create Key"
-5. Copy the key (starts with `sk-ant-`)
-6. **Note:** You need to add billing info and credits, but you get free credits initially
+### Resend API Key for Password Reset (1 minute)
+1. Go to https://resend.com/
+2. Sign up or sign in
+3. Go to API Keys
+4. Copy your API key
+5. **Note:** You can test with free tier
 
 ## Step 3: Update .env File
 
@@ -38,16 +37,15 @@ Open the `.env` file in your project and update these lines:
 # Replace with your Neon connection string
 POSTGRES_URL=postgresql://username:password@ep-something.region.aws.neon.tech/neondb
 
-# Replace with your Stripe test key
-STRIPE_SECRET_KEY=sk_test_your_key_here
+# Replace with your OpenRouter API key
+OPENROUTER_API_KEY=sk-or-v1-your_key_here
 
-# Replace with your Claude API key
-ANTHROPIC_API_KEY=sk-ant-your_key_here
+# Replace with your Resend API key
+RESEND_API_KEY=your_resend_key_here
 
 # These are fine as-is for now
-STRIPE_WEBHOOK_SECRET=whsec_placeholder
 BASE_URL=http://localhost:3002
-AUTH_SECRET=UPE1zWlwYuNwsw1BrmFAlemuQOAAOP47Xoosn+EaX0g=
+AUTH_SECRET=your-random-secret-key-here
 ```
 
 Save the file.
@@ -79,7 +77,7 @@ Expected output: "Migrations applied successfully"
 - Make sure you copied the entire connection string from Neon
 
 **"Invalid API key" error:**
-- Check your Stripe/Claude keys are correct
+- Check your OpenRouter and Resend API keys are correct
 - Make sure there are no extra spaces
 
 **Need help?**

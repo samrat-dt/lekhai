@@ -116,14 +116,14 @@ railway run npm run db:migrate
 - [ ] Configure DNS (A/CNAME records)
 - [ ] SSL certificate active (auto via Vercel/Railway)
 - [ ] Test document generation end-to-end
-- [ ] Test credit purchase with Stripe test mode
-- [ ] Configure Stripe webhook in production
+- [ ] Test credit purchase with Razorpay test mode
+- [ ] Configure Razorpay webhook in production
 - [ ] Set up error monitoring (Sentry)
 - [ ] Set up uptime monitoring
 
 ### Before Public Launch:
 
-- [ ] Switch Stripe to live mode
+- [ ] Switch Razorpay to live mode
 - [ ] Add Terms of Service page
 - [ ] Add Privacy Policy page
 - [ ] Add GDPR data export endpoint
@@ -240,9 +240,12 @@ BASE_URL=...
 ### Optional (Production Recommended):
 
 ```bash
-# Stripe (for payments)
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Razorpay (for payments)
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_SECRET=...
+
+# Email Service (for password reset)
+RESEND_API_KEY=...
 
 # Rate Limiting & Caching
 UPSTASH_REDIS_REST_URL=...
