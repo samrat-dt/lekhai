@@ -63,6 +63,10 @@ export async function createCustomerPortalSession(team: Team) {
     redirect('/pricing');
   }
 
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+
   let configuration: Stripe.BillingPortal.Configuration;
   const configurations = await stripe.billingPortal.configurations.list();
 
@@ -159,6 +163,10 @@ export async function handleSubscriptionChange(
 }
 
 export async function getStripePrices() {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+
   const prices = await stripe.prices.list({
     expand: ['data.product'],
     active: true,
@@ -177,6 +185,10 @@ export async function getStripePrices() {
 }
 
 export async function getStripeProducts() {
+  if (!stripe) {
+    throw new Error('Stripe is not configured');
+  }
+
   const products = await stripe.products.list({
     active: true,
     expand: ['data.default_price']

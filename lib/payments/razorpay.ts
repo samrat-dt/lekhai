@@ -4,11 +4,13 @@ import { creditTransactions, userCredits } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import crypto from 'crypto';
 
-// Initialize Razorpay instance
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
-});
+// Initialize Razorpay instance - only if credentials are available
+export const razorpay = (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET)
+  ? new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    })
+  : null;
 
 export interface CreateOrderPayload {
   userId: number;
@@ -38,6 +40,10 @@ export async function createOrder({
   amount
 }: CreateOrderPayload): Promise<OrderDetails | null> {
   try {
+    if (!razorpay) {
+      throw new Error('Razorpay is not configured');
+    }
+
     const order = await razorpay.orders.create({
       amount: amount,
       currency: 'INR',
@@ -77,6 +83,10 @@ export async function verifyPayment(
   credits: number
 ): Promise<{ success: boolean; message: string }> {
   try {
+    if (!razorpay) {
+      return { success: false, message: 'Razorpay is not configured' };
+    }
+
     // Verify signature
     const signature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
@@ -138,6 +148,9 @@ export async function verifyPayment(
  */
 export async function getPaymentDetails(paymentId: string): Promise<any> {
   try {
+    if (!razorpay) {
+      throw new Error('Razorpay is not configured');
+    }
     return await razorpay.payments.fetch(paymentId);
   } catch (error) {
     console.error('Error fetching payment details:', error);
@@ -153,6 +166,10 @@ export async function refundPayment(
   userId: number
 ): Promise<{ success: boolean; message: string }> {
   try {
+    if (!razorpay) {
+      return { success: false, message: 'Razorpay is not configured' };
+    }
+
     const refund = await razorpay.payments.refund(paymentId, {});
 
     if (refund.status !== 'processed') {
