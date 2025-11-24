@@ -108,12 +108,6 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     logActivity(foundTeam?.id, foundUser.id, ActivityType.SIGN_IN)
   ]);
 
-  const redirectTo = formData.get('redirect') as string | null;
-  if (redirectTo === 'checkout') {
-    const priceId = formData.get('priceId') as string;
-    return createCheckoutSession({ team: foundTeam, priceId });
-  }
-
   redirect('/dashboard');
 });
 
@@ -258,12 +252,6 @@ export const signUp = validatedAction(signUpSchema, async (data, formData) => {
         description: 'Welcome bonus for being one of the first 3 users! Enjoy 10 free credits.'
       })
     });
-  }
-
-  const redirectTo = formData.get('redirect') as string | null;
-  if (redirectTo === 'checkout') {
-    const priceId = formData.get('priceId') as string;
-    return createCheckoutSession({ team: createdTeam, priceId });
   }
 
   redirect('/dashboard');
