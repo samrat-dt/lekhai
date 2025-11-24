@@ -5,22 +5,20 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   test: {
-    // Use jsdom for DOM testing (required for React testing)
-    environment: 'happy-dom',
     globals: true,
-    setupFiles: ['./vitest.setup.ts'],
+    environment: 'happy-dom',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
-        'vitest.setup.ts',
-        '**/*.test.{ts,tsx}',
-        '**/*.spec.{ts,tsx}',
+        'tests/',
+        '**/*.config.ts',
+        '**/*.spec.ts',
+        '**/*.test.ts',
       ],
     },
-    include: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
-    exclude: ['node_modules', '.next', 'dist', 'tests/integration.test.ts'],
+    include: ['lib/**/*.test.ts', 'lib/**/*.spec.ts'],
   },
   resolve: {
     alias: {

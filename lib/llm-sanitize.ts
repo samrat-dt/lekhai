@@ -26,10 +26,10 @@ const DANGEROUS_PATTERNS = {
 
   // Instruction override
   instructionOverride: [
-    /\bignore\s+(previous|above|all|prior|earlier)\s+(instructions|prompts?|constraints|rules)/gi,
-    /\bforget\s+(previous|above|all|prior)\s+(instructions|prompts?|constraints|rules)/gi,
-    /\bdisregard\s+(previous|above|all|prior)\s+(instructions|prompts?|constraints|rules)/gi,
-    /\b(override|bypass|disable|ignore)\s+(the\s+)?(constraints|rules|guidelines|instructions)/gi,
+    /ignore\s+(all\s+)?previous\s+instructions/gi,
+    /forget\s+(previous|above|all|prior)\s+(instructions|prompts?|constraints|rules)/gi,
+    /disregard\s+(previous|above|all|prior)\s+(instructions|prompts?|constraints|rules)/gi,
+    /(override|bypass|disable)\s+(the\s+)?(constraints|rules|guidelines|instructions)/gi,
   ],
 
   // Role manipulation
