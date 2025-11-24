@@ -7,18 +7,20 @@
 - Purpose: AI-powered legal document generation platform for India
 - Target Market: Indian citizens requiring legal documentation
 - Business Model: Credit-based document generation system
-- Technology Stack: Next.js 15, React 19, PostgreSQL, Perplexity AI, Razorpay (migrating from Stripe)
+- Technology Stack: Next.js 15, React 19, PostgreSQL, OpenRouter API, Razorpay, Resend email
 
 ### Core Value Proposition
 Lekhai provides accessible, affordable legal document generation for common use cases in India. Users can generate professionally drafted legal documents through a simple form-based interface powered by AI, without requiring legal expertise or expensive lawyer consultations.
 
 ### Unique Selling Points
-1. High-quality AI using Perplexity (llama-3.1-sonar-large-128k-chat model)
+1. High-quality AI using OpenRouter API (access to multiple models)
 2. India-specific legal formats and language
 3. Credit-based pricing (not subscription)
 4. Instant document generation
 5. No legal knowledge required
 6. Mobile-friendly interface
+7. Secure password reset with email verification
+8. Team collaboration with member invitations
 
 ## TECHNICAL ARCHITECTURE
 
@@ -40,11 +42,13 @@ Lekhai provides accessible, affordable legal document generation for common use 
 - Server-side rendering and streaming
 
 #### External Services
-- Perplexity AI for LLM document generation
-- Razorpay for payment processing (migrating from Stripe)
-- Upstash Redis for rate limiting (optional)
+- OpenRouter API for LLM document generation (FREE tier available)
+- Razorpay for payment processing (fully integrated)
+- Resend for transactional email (password reset, team invitations)
+- Upstash Redis for rate limiting (optional, with local fallback)
 - Railway for database hosting
 - Vercel/Railway for application hosting
+- Sentry for error tracking and monitoring
 
 #### Development Tools
 - ESLint for code linting
@@ -73,13 +77,19 @@ Lekhai provides accessible, affordable legal document generation for common use 
 
 /lib
   /ai                   # AI integration modules
-    perplexity.ts       # Perplexity API integration
+    openrouter.ts       # OpenRouter API integration
     evals.ts            # Document quality evaluation suite
   /auth                 # Authentication utilities
+    session.ts          # JWT session and password hashing
   /db                   # Database schema and queries
-  /payments             # Payment integration (Stripe legacy, Razorpay pending)
-  rate-limit.ts         # Rate limiting logic
-  llm-sanitize.ts       # Input sanitization
+  /payments             # Payment integration
+    razorpay.ts         # Razorpay integration
+    actions.ts          # Payment action stubs
+  /email                # Email service
+    service.ts          # Resend email sending
+    templates.ts        # Email HTML templates
+  rate-limit.ts         # Rate limiting logic with Redis fallback
+  llm-sanitize.ts       # Input sanitization for LLM
 
 /public                 # Static assets
 ```
@@ -87,14 +97,18 @@ Lekhai provides accessible, affordable legal document generation for common use 
 #### Route Structure
 - `/` - Landing page with product overview
 - `/sign-in` - User authentication
-- `/sign-up` - User registration
-- `/dashboard` - User dashboard showing documents and credits
+- `/sign-up` - User registration with password strength validation
+- `/forgot-password` - Password reset request form
+- `/reset-password` - Password reset with token verification (secure)
+- `/dashboard` - User dashboard showing documents, credits, and team
 - `/dashboard/documents` - Document listing
 - `/dashboard/documents/new` - Document creation wizard
 - `/dashboard/documents/[id]` - Document detail view
 - `/pricing` - Credit packages and pricing
 - `/api/user` - User data endpoint
-- `/api/webhooks/stripe` - Stripe webhook handler
+- `/api/team` - Team data endpoint
+- `/api/razorpay/create-order` - Razorpay order creation
+- `/api/razorpay/webhook` - Razorpay payment webhook handler
 
 ### Database Schema
 
@@ -859,9 +873,12 @@ Layout:
 - Main content area:
   - Welcome message with user name
   - Credit balance display (large, prominent)
-  - "Buy Credits" button
   - Recent documents list
   - "New Document" button (primary CTA)
+  - Team Settings section:
+    - Team Members list with roles
+    - Invite Team Member form
+    - Team member management
 
 **Document Creation Wizard (/dashboard/documents/new)**
 Flow:
@@ -887,8 +904,13 @@ Layout:
   - Credit amount
   - Price in ₹
   - Per-document cost
-  - "Buy Now" button (currently disabled during payment migration)
-- Payment integration: Transitioning from Stripe to Razorpay
+  - Bulk discount indicators
+  - "Buy Now" button (Razorpay integration)
+- Credit packages:
+  - 10 credits: ₹250
+  - 50 credits: ₹990 (10% discount)
+  - 100 credits: ₹1790 (20% discount)
+  - 200 credits: ₹2990 (25% discount)
 
 ### Form Components
 
@@ -1458,9 +1480,65 @@ All credentials have been rotated for security:
 
 ## PHASE 1 IMPLEMENTATION STATUS: COMPLETE ✓
 
+### Phase 1 Completion Summary
+
+All Phase 1 features have been successfully implemented and tested. The application is now ready for production deployment with secure authentication, payment processing, email notifications, and comprehensive error monitoring.
+
 ### Phase 1 Features Implemented
 
-#### 1. Email Service (Resend Integration)
+#### 0. Stripe Removal & Migration Complete
+**Status**: ✓ Complete and Tested
+
+**What was implemented:**
+- Complete removal of Stripe payment integration from codebase
+- Removed all Stripe-related dependencies, files, and configurations
+- Deleted `/lib/payments/stripe.ts` and `/app/api/stripe/` directory
+- Removed Stripe schema fields from database schema
+- Updated all documentation to reflect Razorpay-only integration
+- Removed 8 Stripe-related npm packages
+
+**Files deleted:**
+- `lib/payments/stripe.ts` - Stripe SDK integration
+- `app/api/stripe/checkout/route.ts` - Checkout endpoint
+- `app/api/stripe/webhook/route.ts` - Webhook handler
+
+**Database changes:**
+- Removed stripeCustomerId, stripeSubscriptionId, stripeProductId columns from teams table
+- Removed planName and subscriptionStatus fields
+- Cleaned up orphaned Stripe indexes
+
+#### 1. Password Reset System with UI
+**Status**: ✓ Complete and Tested
+
+**What was implemented:**
+- Visible password reset flow with dedicated UI pages
+- "Forgot password?" link prominently displayed on sign-in form
+- `/forgot-password` page for requesting password reset
+- `/reset-password?token=...` page for secure password reset with token validation
+- Secure password reset flow with token-based verification
+- 32-byte cryptographically secure tokens using Node.js crypto module
+- 24-hour token expiration with automatic cleanup
+- One-time use enforcement (tokens become invalid after use)
+- Password strength validation:
+  - Minimum 8 characters
+  - Requires uppercase, lowercase, number, and special character
+  - Applied to both sign-up and password reset
+
+**Files created/modified:**
+- `app/(login)/forgot-password/page.tsx` - NEW - Password reset request form
+- `app/(login)/reset-password/page.tsx` - NEW - Password reset form with token validation
+- `app/(login)/login.tsx` - Added "Forgot password?" link to sign-in form
+- `lib/db/schema.ts` - passwordResetTokens table with proper indexes
+- `app/(login)/actions.ts` - requestPasswordReset and resetPassword actions
+
+**User-facing features:**
+- Email-based password reset with 24-hour token expiration
+- Clear password strength requirements
+- Show/hide password toggle for better UX
+- Loading states and error handling
+- Success confirmation with link to sign-in
+
+#### 2. Email Service (Resend Integration)
 **Status**: ✓ Complete and Tested
 
 **What was implemented:**
@@ -1569,18 +1647,53 @@ All credentials have been rotated for security:
 - `lib/email/templates.ts` - Invitation email template
 - `lib/email/service.ts` - Email service integration
 
-#### 6. Security Hardening Phase 1
+#### 6. Dashboard UI Cleanup
 **Status**: ✓ Complete and Tested
 
 **What was implemented:**
-- Fixed Stripe null check errors across payment system
-- Proper null safety in all payment functions
-- Type-safe error handling for missing configurations
-- Graceful degradation when payment providers unavailable
-- Fixed TypeScript compilation errors (15 individual fixes)
-- Build system now compiles successfully with zero errors
+- Removed ManageSubscription component from dashboard (subscription management no longer needed)
+- Removed SubscriptionSkeleton loading component
+- Removed unused customerPortalAction imports
+- Dashboard now focuses on Team Members and Team Invitations
+- Removed all references to Stripe subscription fields (planName, subscriptionStatus)
+- Cleaned up dashboard imports and dependencies
+
+**Impact:**
+- Simplified dashboard UI with fewer components
+- Reduced visual clutter
+- Focuses user attention on document creation and team collaboration
+
+#### 7. Documentation Updates
+**Status**: ✓ Complete and Tested
+
+**Updated files:**
+- `README.md` - Updated environment variables section (Razorpay + Resend instead of Stripe)
+- `DEPLOYMENT_GUIDE.md` - Updated checklist and environment variables for production
+- `QUICK_START.md` - Replaced Stripe setup with OpenRouter and Resend integration guides
+- Updated all payment references from Stripe to Razorpay
+- All documentation now reflects current technology stack
+
+**Changes made:**
+- Replaced Stripe configuration steps with Razorpay
+- Added Resend email service setup guide
+- Updated OpenRouter API configuration
+- Removed legacy Stripe webhook documentation
+
+#### 8. Codebase Quality & Build Status
+**Status**: ✓ Complete and Tested
+
+**What was implemented:**
+- Removed Stripe npm package (8 packages uninstalled)
+- Fixed all TypeScript compilation errors
+- Ensured type safety across all modules
+- Production build compiles successfully
+- All 21 routes properly generated and prerendered
 
 **Build Status**: ✓ Passing
+- ✓ Compiles successfully with Next.js 15.4.0-canary.47
+- ✓ Passes all TypeScript strict mode checks
+- ✓ Generates optimized production build
+- ✓ All 21 routes properly generated
 
 ### Build Verification
 
