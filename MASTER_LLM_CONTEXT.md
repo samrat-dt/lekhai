@@ -7,13 +7,13 @@
 - Purpose: AI-powered legal document generation platform for India
 - Target Market: Indian citizens requiring legal documentation
 - Business Model: Credit-based document generation system
-- Technology Stack: Next.js 15, React 19, PostgreSQL, OpenRouter API, Razorpay, Resend email
+- Technology Stack: Next.js 15, React 19, PostgreSQL, Perplexity AI, Razorpay, Resend email
 
 ### Core Value Proposition
 Lekhai provides accessible, affordable legal document generation for common use cases in India. Users can generate professionally drafted legal documents through a simple form-based interface powered by AI, without requiring legal expertise or expensive lawyer consultations.
 
 ### Unique Selling Points
-1. High-quality AI using OpenRouter API (access to multiple models)
+1. High-quality AI using Perplexity AI (Sonar models optimized for reasoning and accuracy)
 2. India-specific legal formats and language
 3. Credit-based pricing (not subscription)
 4. Instant document generation
@@ -42,7 +42,7 @@ Lekhai provides accessible, affordable legal document generation for common use 
 - Server-side rendering and streaming
 
 #### External Services
-- OpenRouter API for LLM document generation (FREE tier available)
+- Perplexity AI for LLM document generation (Sonar models for reasoning and accuracy)
 - Razorpay for payment processing (fully integrated)
 - Resend for transactional email (password reset, team invitations)
 - Upstash Redis for rate limiting (optional, with local fallback)
@@ -510,16 +510,16 @@ Example pricing tiers:
 8. Transaction recorded in database
 9. User sees updated balance on dashboard
 
-### AI Integration (Perplexity)
+### AI Integration (Perplexity AI)
 
 #### How AI is Used in Lekhai
-Lekhai uses AI (Large Language Models via Perplexity API) to automatically generate professionally formatted legal documents based on user-provided information. The AI acts as a legal document drafting assistant specifically trained for Indian legal contexts.
+Lekhai uses AI (Large Language Models via Perplexity AI API) to automatically generate professionally formatted legal documents based on user-provided information. The AI acts as a legal document drafting assistant specifically trained for Indian legal contexts.
 
 **Core AI Functionality:**
 1. **Document Generation**: Users fill out simple forms, AI transforms the inputs into complete, professionally formatted legal documents
 2. **Legal Language**: AI applies proper legal terminology, clauses, and formatting conventions for India
 3. **Customization**: Each document is uniquely generated based on specific user inputs (names, dates, amounts, circumstances)
-4. **Quality**: Uses Perplexity's Llama 3.1 Sonar Large model optimized for reasoning and factual accuracy
+4. **Quality**: Uses Perplexity's Sonar models optimized for reasoning and factual accuracy
 
 **Example Workflow:**
 - User fills "Payment Default Notice" form with: debtor name, amount owed, payment date, reminder dates
@@ -536,23 +536,22 @@ Lekhai uses AI (Large Language Models via Perplexity API) to automatically gener
 - Provider: Perplexity AI
 - Base URL: https://api.perplexity.ai
 - Endpoint: /chat/completions
-- Model: llama-3.1-sonar-large-128k-chat (optimized for conversational tasks and document generation)
+- Model: sonar-large-32k (optimized for reasoning and factual accuracy in document generation)
 - Authentication: Bearer token in Authorization header
 - Temperature: 0.2 (low for consistent legal language)
 - Max Tokens: 4096 (sufficient for most legal documents)
 
 **Available Perplexity Models:**
-- `llama-3.1-sonar-small-128k-online` - Smaller model with web search (not used)
-- `llama-3.1-sonar-large-128k-online` - Large model with web search (not used)
-- `llama-3.1-sonar-huge-128k-online` - Largest model with web search (not used)
-- `llama-3.1-sonar-small-128k-chat` - Small chat model
-- `llama-3.1-sonar-large-128k-chat` - **USED** - Best for legal document generation
+- `sonar-small-32k` - Smaller model optimized for speed
+- `sonar-large-32k` - **USED** - Large model optimized for reasoning and accuracy (32k context window)
+- `sonar-pro` - Professional tier model with enhanced capabilities
+- `sonar-1-mini` - Compact model for faster responses
 
-**Why Chat Model (Not Online):**
-- Legal documents don't need web search or real-time information
-- Chat models are optimized for conversational, structured output
-- Better formatting and consistency for document generation
-- Lower latency without unnecessary web searches
+**Model Selection Rationale:**
+- Sonar models are optimized for reasoning and factual accuracy
+- 32k context window provides sufficient capacity for legal document generation
+- Temperature 0.2 ensures consistent, formal legal language
+- No web search features needed for templated legal documents
 
 #### Module Structure
 Implementation is split across three modules for maintainability:
@@ -1219,11 +1218,12 @@ AUTH_SECRET=[base64 32-byte string]
 ```
 Generate with: openssl rand -base64 32
 
-**Perplexity AI**
+**Perplexity AI** (Primary LLM Provider)
 ```
 PERPLEXITY_API_KEY=pplx-[key]
 ```
-Get from: https://www.perplexity.ai/settings/api
+Get from: https://www.perplexity.ai/settings/api or https://console.perplexity.ai/api
+Note: Replace OpenRouter references with Perplexity API key
 
 **Encryption**
 ```
@@ -1259,11 +1259,11 @@ UPSTASH_REDIS_REST_TOKEN=[token]
 All credentials have been rotated for security:
 - AUTH_SECRET: Rotated (new 32-byte secure key)
 - ENCRYPTION_KEY: Added (new 32-byte secure key)
-- PERPLEXITY_API_KEY: Active (migrated from OpenRouter)
+- PERPLEXITY_API_KEY: Active (primary AI provider)
 - POSTGRES_URL: Migrated to new Railway database
 - Old exposed credentials have been invalidated
 - Stripe keys: Commented out (migration to Razorpay in progress)
-- OpenRouter: Deprecated and removed
+- OpenRouter: Deprecated (replaced with Perplexity AI)
 
 #### Configuration Loading
 - Variables loaded via Next.js env system
@@ -1963,10 +1963,11 @@ git push origin feature/name
 - Verify domain matches
 
 **AI Generation Failing**
-- Verify PERPLEXITY_API_KEY is valid
-- Check API rate limits
-- Verify network connectivity
-- Check payload size
+- Verify PERPLEXITY_API_KEY is valid and not expired
+- Check Perplexity API rate limits and usage
+- Verify network connectivity to api.perplexity.ai
+- Check payload size (max 10,000 characters after sanitization)
+- Verify Perplexity API key has proper permissions
 
 **Payment System Issues**
 - Current status: Payment system disabled during Stripe to Razorpay migration
